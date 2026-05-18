@@ -1,0 +1,1 @@
+- WithScheduler(jobs []cron.Job, schedulerOpts ...gocron.SchedulerOption)
