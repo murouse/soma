@@ -36,8 +36,7 @@ func (s *Server) PreRun(ctx context.Context) error {
 
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)
-	//router.Mount("/", runtimeServeMux)
-	router.Handle("/", runtimeServeMux)
+	router.Mount("/", runtimeServeMux)
 
 	var err error
 	s.grpcClientConn, err = grpc.NewClient(fmt.Sprintf(":%d", s.grpcPort),
