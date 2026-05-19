@@ -31,7 +31,7 @@ func WithReflection(enabled bool) Option {
 	}
 }
 
-func WithAdapters(impls []ImplementationAdapter) Option {
+func WithAdapters(impls ...ImplementationAdapter) Option {
 	return func(config *Config) error {
 		config.Impls = append(config.Impls, impls...)
 		return nil

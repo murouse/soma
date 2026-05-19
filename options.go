@@ -10,33 +10,7 @@ import (
 	"github.com/murouse/soma/scheduler"
 )
 
-// ===========
-// Entrypoint
-// ===========
-
 type EntrypointOption func(*EntrypointConfig) error
-
-func buildEntrypointConfig(opts ...EntrypointOption) (*EntrypointConfig, error) {
-	// сначала заполняем дефолтом
-	cfg := Default()
-
-	// потом переопределяем
-	for _, opt := range opts {
-		if err := opt(cfg); err != nil {
-			return nil, fmt.Errorf("apply option: %w", err)
-		}
-	}
-
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("validate: %w", err)
-	}
-
-	return cfg, nil
-}
-
-// ===========
-// Processes
-// ===========
 
 func WithProcesses(processes ...Process) EntrypointOption {
 	return func(cfg *EntrypointConfig) error {
@@ -44,10 +18,6 @@ func WithProcesses(processes ...Process) EntrypointOption {
 		return nil
 	}
 }
-
-// ===========
-// Scheduler
-// ===========
 
 func WithScheduler(opts ...scheduler.Option) EntrypointOption {
 	return func(c *EntrypointConfig) error {
@@ -63,10 +33,6 @@ func WithScheduler(opts ...scheduler.Option) EntrypointOption {
 	}
 }
 
-// ===========
-// GrpcServer
-// ===========
-
 func WithGrpcServer(opts ...grpcserver.Option) EntrypointOption {
 	return func(c *EntrypointConfig) error {
 		cfg := grpcserver.Default()
@@ -81,10 +47,6 @@ func WithGrpcServer(opts ...grpcserver.Option) EntrypointOption {
 	}
 }
 
-// ===========
-// GrpcGateway
-// ===========
-
 func WithGrpcGateway(opts ...grpcgateway.Option) EntrypointOption {
 	return func(c *EntrypointConfig) error {
 		cfg := grpcgateway.Default()
@@ -98,10 +60,6 @@ func WithGrpcGateway(opts ...grpcgateway.Option) EntrypointOption {
 		return nil
 	}
 }
-
-// ===========
-// Profiler
-// ===========
 
 func WithProfiler(opts ...profiler.Option) EntrypointOption {
 	return func(c *EntrypointConfig) error {
