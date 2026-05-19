@@ -64,6 +64,7 @@ func (s *Server) PreRun(ctx context.Context) error {
 }
 
 func (s *Server) Run(ctx context.Context) error {
+	fmt.Printf("run serving grpc-gateway at %d\n", s.cfg.Params.Port)
 	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("listen and serve: %w", err)
 	}

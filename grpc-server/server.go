@@ -48,6 +48,7 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("listen: %v", err)
 	}
 
+	fmt.Printf("run serving grpc at %d\n", s.cfg.Params.Port)
 	if err = s.server.Serve(listener); err != nil {
 		return fmt.Errorf("serve: %w", err)
 	}

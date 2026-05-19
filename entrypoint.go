@@ -19,6 +19,19 @@ type Entrypoint struct {
 	processes []Process
 }
 
+func NewEntrypointRun(ctx context.Context, opts ...EntrypointOption) error {
+	entrypoint, err := NewEntrypoint(opts...)
+	if err != nil {
+		return fmt.Errorf("new entrypoint: %w", err)
+	}
+
+	if err = entrypoint.Run(ctx); err != nil {
+		return fmt.Errorf("entrypoint run: %w", err)
+	}
+
+	return nil
+}
+
 // NewEntrypoint создает точку входа
 func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 	cfg, err := buildEntrypointConfig(opts...)
