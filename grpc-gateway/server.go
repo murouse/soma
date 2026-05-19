@@ -23,7 +23,8 @@ type Server struct {
 	impls    []ImplementationAdapter
 	grpcPort int
 
-	server *http.Server
+	grpcClientConn *grpc.ClientConn
+	server         *http.Server
 }
 
 func New(cfg *Config, impls []ImplementationAdapter, grpcPort int) *Server {
@@ -38,7 +39,8 @@ func (s *Server) PreRun(ctx context.Context) error {
 	//router.Mount("/", runtimeServeMux)
 	router.Handle("/", runtimeServeMux)
 
-	grpcClientConn, err := grpc.NewClient(fmt.Sprintf(":%d", s.grpcPort),
+	var err error
+	s.grpcClientConn, err = grpc.NewClient(fmt.Sprintf(":%d", s.grpcPort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		//grpc.WithDefaultCallOptions(g.grpcCallOptions...),
 	)
@@ -47,7 +49,8 @@ func (s *Server) PreRun(ctx context.Context) error {
 	}
 
 	for _, impl := range s.impls {
-		err = errors.Join(err, impl.RegisterHandler(ctx, runtimeServeMux, grpcClientConn))
+		fmt.Printf("Registering grpc gateway implementation\n")
+		err = errors.Join(err, impl.RegisterHandler(ctx, runtimeServeMux, s.grpcClientConn))
 	}
 	if err != nil {
 		return fmt.Errorf("register gateway: %w", err)
@@ -77,7 +80,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	defer cancel()
 
 	if err := s.server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("shutdown: %w", err)
+		return fmt.Errorf("shutdown server: %w", err)
+	}
+
+	if err := s.grpcClientConn.Close(); err != nil {
+		return fmt.Errorf("close grpc client conn: %w", err)
 	}
 
 	return nil
