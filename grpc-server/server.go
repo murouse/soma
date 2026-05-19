@@ -2,6 +2,7 @@ package grpcserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -32,10 +33,12 @@ func (s *Server) PreRun(_ context.Context) error {
 	s.server = grpc.NewServer(s.cfg.ServerOptions...)
 
 	for _, impl := range s.cfg.Impls {
+		fmt.Printf("RegisterServer grpc\n")
 		impl.RegisterServer(s.server)
 	}
 
 	if s.cfg.Params.ReflectionEnabled {
+		fmt.Printf("ReflectionEnabled grpc\n")
 		reflection.Register(s.server)
 	}
 
@@ -49,7 +52,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	fmt.Printf("run serving grpc at %d\n", s.cfg.Params.Port)
-	if err = s.server.Serve(listener); err != nil {
+	if err = s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 		return fmt.Errorf("serve: %w", err)
 	}
 
