@@ -8,6 +8,7 @@ import (
 	"net/http/pprof"
 )
 
+// Server представляет собой HTTP-сервер для профилирования через pprof.
 type Server struct {
 	cfg *Config
 
@@ -18,7 +19,7 @@ func New(cfg *Config) *Server {
 	return &Server{cfg: cfg}
 }
 
-func (s *Server) PreRun(_ context.Context) error {
+func (s *Server) Prepare(_ context.Context) error {
 	mux := http.NewServeMux()
 
 	// Index responds with the pprof-formatted profile named by the request.

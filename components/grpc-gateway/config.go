@@ -7,20 +7,22 @@ import (
 )
 
 type Config struct {
-	Params          Params
-	ServeMuxOptions []runtime.ServeMuxOption
-}
-
-type Params struct {
 	Port            int
 	ShutdownTimeout time.Duration
+	ServeMuxOptions []runtime.ServeMuxOption
 }
 
 type Option func(*Config) error
 
-func WithParams(params Params) Option {
+func WithPort(port int) Option {
 	return func(config *Config) error {
-		config.Params = params
+		config.Port = port
+		return nil
+	}
+}
+func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
+	return func(config *Config) error {
+		config.ShutdownTimeout = shutdownTimeout
 		return nil
 	}
 }
@@ -28,6 +30,13 @@ func WithParams(params Params) Option {
 func WithServeMuxOptions(opts ...runtime.ServeMuxOption) Option {
 	return func(config *Config) error {
 		config.ServeMuxOptions = append(config.ServeMuxOptions, opts...)
+		return nil
+	}
+}
+
+func WithResetServeMuxOptions(opts ...runtime.ServeMuxOption) Option {
+	return func(config *Config) error {
+		config.ServeMuxOptions = opts
 		return nil
 	}
 }

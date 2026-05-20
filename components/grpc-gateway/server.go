@@ -18,6 +18,7 @@ type ImplementationAdapter interface {
 	RegisterHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 }
 
+// Server представляет собой HTTP-шлюз, проксирующий запросы к gRPC-сервисам.
 type Server struct {
 	cfg      *Config
 	impls    []ImplementationAdapter
@@ -31,7 +32,7 @@ func New(cfg *Config, impls []ImplementationAdapter, grpcPort int) *Server {
 	return &Server{cfg: cfg, impls: impls, grpcPort: grpcPort}
 }
 
-func (s *Server) PreRun(ctx context.Context) error {
+func (s *Server) Prepare(ctx context.Context) error {
 	runtimeServeMux := runtime.NewServeMux(s.cfg.ServeMuxOptions...)
 
 	router := chi.NewRouter()
@@ -59,14 +60,14 @@ func (s *Server) PreRun(ctx context.Context) error {
 
 	s.server = &http.Server{
 		Handler: handler,
-		Addr:    fmt.Sprintf(":%d", s.cfg.Params.Port),
+		Addr:    fmt.Sprintf(":%d", s.cfg.Port),
 	}
 
 	return nil
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	fmt.Printf("run serving grpc-gateway at %d\n", s.cfg.Params.Port)
+	fmt.Printf("run serving grpc-gateway at %d\n", s.cfg.Port)
 	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("listen and serve: %w", err)
 	}
@@ -75,7 +76,7 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, s.cfg.Params.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.ShutdownTimeout)
 	defer cancel()
 
 	if err := s.server.Shutdown(ctx); err != nil {

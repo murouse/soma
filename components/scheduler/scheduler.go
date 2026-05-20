@@ -7,6 +7,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
+// Scheduler является оберткой над планировщиком задач.
 type Scheduler struct {
 	scheduler gocron.Scheduler
 }
@@ -37,7 +38,7 @@ func New(cfg *Config) (*Scheduler, error) {
 	}, nil
 }
 
-func (s *Scheduler) PreRun(_ context.Context) error {
+func (s *Scheduler) Prepare(_ context.Context) error {
 	return nil
 }
 

@@ -17,6 +17,7 @@ type ImplementationAdapter interface {
 	RegisterHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 }
 
+// Server реализует gRPC-сервер с поддержкой адаптеров сервисов.
 type Server struct {
 	cfg *Config
 
@@ -29,7 +30,7 @@ func New(cfg *Config) *Server {
 	}
 }
 
-func (s *Server) PreRun(_ context.Context) error {
+func (s *Server) Prepare(_ context.Context) error {
 	s.server = grpc.NewServer(s.cfg.ServerOptions...)
 
 	for _, impl := range s.cfg.Impls {
@@ -37,7 +38,7 @@ func (s *Server) PreRun(_ context.Context) error {
 		impl.RegisterServer(s.server)
 	}
 
-	if s.cfg.Params.ReflectionEnabled {
+	if s.cfg.ReflectionEnabled {
 		fmt.Printf("ReflectionEnabled grpc\n")
 		reflection.Register(s.server)
 	}
@@ -46,12 +47,12 @@ func (s *Server) PreRun(_ context.Context) error {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", fmt.Sprintf(":%d", s.cfg.Params.Port))
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", fmt.Sprintf(":%d", s.cfg.Port))
 	if err != nil {
 		return fmt.Errorf("listen: %v", err)
 	}
 
-	fmt.Printf("run serving grpc at %d\n", s.cfg.Params.Port)
+	fmt.Printf("run serving grpc at %d\n", s.cfg.Port)
 	if err = s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 		return fmt.Errorf("serve: %w", err)
 	}

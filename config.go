@@ -2,38 +2,23 @@ package soma
 
 import (
 	"fmt"
+	"time"
 
-	grpcgateway "github.com/murouse/soma/grpc-gateway"
-	grpcserver "github.com/murouse/soma/grpc-server"
-	"github.com/murouse/soma/profiler"
-	"github.com/murouse/soma/scheduler"
+	grpcgateway "github.com/murouse/soma/components/grpc-gateway"
+	grpcserver "github.com/murouse/soma/components/grpc-server"
+	"github.com/murouse/soma/components/profiler"
+	"github.com/murouse/soma/components/scheduler"
 )
 
 type EntrypointConfig struct {
-	scheduler   *scheduler.Config
-	grpcServer  *grpcserver.Config
-	grpcGateway *grpcgateway.Config
-	profiler    *profiler.Config
-
+	scheduler       *scheduler.Config
+	grpcServer      *grpcserver.Config
+	grpcGateway     *grpcgateway.Config
+	profiler        *profiler.Config
 	customProcesses []Process // процессы, добавляемые пользователем через WithProcesses
-}
-
-func buildEntrypointConfig(opts ...EntrypointOption) (*EntrypointConfig, error) {
-	// сначала заполняем дефолтом
-	cfg := Default()
-
-	// потом переопределяем
-	for _, opt := range opts {
-		if err := opt(cfg); err != nil {
-			return nil, fmt.Errorf("apply option: %w", err)
-		}
-	}
-
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("validate: %w", err)
-	}
-
-	return cfg, nil
+	prepareTimeout  time.Duration
+	shutdownTimeout time.Duration
+	closures        []func() error
 }
 
 func (c *EntrypointConfig) Validate() error {
@@ -42,4 +27,78 @@ func (c *EntrypointConfig) Validate() error {
 	}
 
 	return nil
+}
+
+type EntrypointOption func(*EntrypointConfig) error
+
+func WithProcesses(processes ...Process) EntrypointOption {
+	return func(cfg *EntrypointConfig) error {
+		cfg.customProcesses = append(cfg.customProcesses, processes...)
+		return nil
+	}
+}
+
+func WithPrepareTimeout(prepareTimeout time.Duration) EntrypointOption {
+	return func(cfg *EntrypointConfig) error {
+		cfg.prepareTimeout = prepareTimeout
+		return nil
+	}
+}
+
+func WithShutdownTimeout(shutdownTimeout time.Duration) EntrypointOption {
+	return func(cfg *EntrypointConfig) error {
+		cfg.shutdownTimeout = shutdownTimeout
+		return nil
+	}
+}
+
+func WithClosers(closures ...func() error) EntrypointOption {
+	return func(cfg *EntrypointConfig) error {
+		cfg.closures = append(cfg.closures, closures...)
+		return nil
+	}
+}
+
+func WithScheduler(opts ...scheduler.Option) EntrypointOption {
+	return func(c *EntrypointConfig) error {
+		cfg, err := scheduler.DefaultWith(opts...)
+		if err != nil {
+			return err
+		}
+		c.scheduler = cfg
+		return nil
+	}
+}
+
+func WithGrpcServer(opts ...grpcserver.Option) EntrypointOption {
+	return func(c *EntrypointConfig) error {
+		cfg, err := grpcserver.DefaultWith(opts...)
+		if err != nil {
+			return err
+		}
+		c.grpcServer = cfg
+		return nil
+	}
+}
+
+func WithGrpcGateway(opts ...grpcgateway.Option) EntrypointOption {
+	return func(c *EntrypointConfig) error {
+		cfg, err := grpcgateway.DefaultWith(opts...)
+		if err != nil {
+			return err
+		}
+		c.grpcGateway = cfg
+		return nil
+	}
+}
+
+func WithProfiler(opts ...profiler.Option) EntrypointOption {
+	return func(c *EntrypointConfig) error {
+		cfg, err := profiler.DefaultWith(opts...)
+		if err != nil {
+			return err
+		}
+		c.profiler = cfg
+		return nil
+	}
 }
