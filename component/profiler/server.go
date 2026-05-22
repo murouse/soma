@@ -2,24 +2,26 @@ package profiler
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/pprof"
+
+	httpserver "github.com/murouse/soma/component/http-server"
 )
 
 // Server представляет собой HTTP-сервер для профилирования через pprof.
 type Server struct {
 	cfg *Config
 
-	server *http.Server
+	logger *slog.Logger
+	*httpserver.Server
 }
 
 func New(cfg *Config) *Server {
-	return &Server{cfg: cfg}
+	return &Server{cfg: cfg, logger: cfg.Logger}
 }
 
-func (s *Server) Prepare(_ context.Context) error {
+func (s *Server) Prepare(ctx context.Context) error {
 	mux := http.NewServeMux()
 
 	// Index responds with the pprof-formatted profile named by the request.
@@ -62,30 +64,12 @@ func (s *Server) Prepare(_ context.Context) error {
 	// the command line of the current program.
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 
-	s.server = &http.Server{
-		ReadHeaderTimeout: s.cfg.ReadHeaderTimeout,
-		Addr:              fmt.Sprintf(":%d", s.cfg.Port),
+	s.Server = httpserver.New(&httpserver.Config{
+		Port:              s.cfg.Port,
 		Handler:           mux,
-	}
-
-	return nil
-}
-
-func (s *Server) Run(ctx context.Context) error {
-	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("listen and serve: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Server) Shutdown(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, s.cfg.ShutdownTimeout)
-	defer cancel()
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("shutdown: %w", err)
-	}
+		Logger:            s.logger,
+		ReadHeaderTimeout: s.cfg.ReadHeaderTimeout,
+	})
 
 	return nil
 }

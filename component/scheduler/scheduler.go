@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-co-op/gocron/v2"
 )
@@ -10,6 +11,7 @@ import (
 // Scheduler является оберткой над планировщиком задач.
 type Scheduler struct {
 	scheduler gocron.Scheduler
+	logger    *slog.Logger
 }
 
 func New(cfg *Config) (*Scheduler, error) {
@@ -30,15 +32,16 @@ func New(cfg *Config) (*Scheduler, error) {
 			return nil, fmt.Errorf("new job: %w", err)
 		}
 
-		fmt.Printf("job id %s created\n", j.ID())
+		cfg.Logger.Debug("job created", slog.String("id", j.ID().String()), slog.String("name", j.Name()))
 	}
 
 	return &Scheduler{
 		scheduler: s,
+		logger:    cfg.Logger,
 	}, nil
 }
 
-func (s *Scheduler) Prepare(_ context.Context) error {
+func (s *Scheduler) Prepare(ctx context.Context) error {
 	return nil
 }
 

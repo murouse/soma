@@ -2,12 +2,15 @@ package soma
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
-	grpcgateway "github.com/murouse/soma/components/grpc-gateway"
-	grpcserver "github.com/murouse/soma/components/grpc-server"
-	"github.com/murouse/soma/components/profiler"
-	"github.com/murouse/soma/components/scheduler"
+	"github.com/murouse/logo"
+	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
+	grpcserver "github.com/murouse/soma/component/grpc-server"
+	httpserver "github.com/murouse/soma/component/http-server"
+	"github.com/murouse/soma/component/profiler"
+	"github.com/murouse/soma/component/scheduler"
 )
 
 func Default() *EntrypointConfig {
@@ -20,17 +23,9 @@ func Default() *EntrypointConfig {
 		prepareTimeout:  time.Second * 5,
 		shutdownTimeout: time.Second * 5,
 		closures:        []func() error{},
+		logger:          slog.Default().With(logo.Component("entrypoint")), // TODO заменить
+		httpServer:      []httpserver.Config{},
 	}
-}
-
-func (c *EntrypointConfig) Apply(opts ...EntrypointOption) error {
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return fmt.Errorf("apply option: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func DefaultWith(opts ...EntrypointOption) (*EntrypointConfig, error) {

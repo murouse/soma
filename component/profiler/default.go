@@ -2,7 +2,10 @@ package profiler
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
+
+	"github.com/murouse/logo"
 )
 
 func Default() *Config {
@@ -10,17 +13,8 @@ func Default() *Config {
 		Port:              1491,
 		ShutdownTimeout:   time.Second,
 		ReadHeaderTimeout: time.Minute,
+		Logger:            slog.Default().With(logo.Component("profiler")),
 	}
-}
-
-func (c *Config) Apply(opts ...Option) error {
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return fmt.Errorf("apply option: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func DefaultWith(opts ...Option) (*Config, error) {

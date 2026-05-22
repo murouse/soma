@@ -2,7 +2,9 @@ package grpcserver
 
 import (
 	"fmt"
+	"log/slog"
 
+	"github.com/murouse/logo"
 	"google.golang.org/grpc"
 )
 
@@ -12,17 +14,8 @@ func Default() *Config {
 		ReflectionEnabled: true,
 		Impls:             []ImplementationAdapter{},
 		ServerOptions:     []grpc.ServerOption{},
+		Logger:            slog.Default().With(logo.Component("grpc-server")),
 	}
-}
-
-func (c *Config) Apply(opts ...Option) error {
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return fmt.Errorf("apply option: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func DefaultWith(opts ...Option) (*Config, error) {

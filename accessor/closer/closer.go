@@ -26,37 +26,31 @@ func (c *Closer) Add(funcs ...func() error) {
 	c.closures = append(c.closures, funcs...)
 }
 
-// Close выполняет все зарегистрированные функции в обратном порядке (LIFO).
+// Close выполняет все зарегистрированные функции последовательно в обратном порядке (LIFO).
+// Перед каждым шагом проверяется состояние контекста.
 func (c *Closer) Close(ctx context.Context) error {
 	c.mu.Lock()
 	closures := c.closures
 	c.closures = nil
 	c.mu.Unlock()
 
-	var errs []error
-	var mu sync.Mutex
+	errs := make([]error, 0, len(closures))
 
-	var wg sync.WaitGroup
 	for i := len(closures) - 1; i >= 0; i-- {
-		wg.Add(1)
-		go func(f func() error) {
-			defer wg.Done()
+		if err := ctx.Err(); err != nil {
+			errs = append(errs, fmt.Errorf("closer stopped by context: %w", err))
+			break
+		}
+
+		errs = append(errs, func(f func() error) (fErr error) {
 			defer func() {
 				if r := recover(); r != nil {
-					mu.Lock()
-					errs = append(errs, fmt.Errorf("panic: %v", r))
-					mu.Unlock()
+					fErr = fmt.Errorf("panic: %v", r)
 				}
 			}()
-
-			if err := f(); err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-			}
-		}(closures[i])
+			return f()
+		}(closures[i]))
 	}
 
-	wg.Wait()
 	return errors.Join(errs...)
 }

@@ -1,6 +1,9 @@
 package grpcserver
 
 import (
+	"fmt"
+	"log/slog"
+
 	"google.golang.org/grpc"
 )
 
@@ -9,6 +12,17 @@ type Config struct {
 	ReflectionEnabled bool
 	Impls             []ImplementationAdapter
 	ServerOptions     []grpc.ServerOption
+	Logger            *slog.Logger
+}
+
+func (c *Config) Apply(opts ...Option) error {
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return fmt.Errorf("apply option: %w", err)
+		}
+	}
+
+	return nil
 }
 
 type Option func(*Config) error
@@ -44,6 +58,13 @@ func WithServerOptions(opts ...grpc.ServerOption) Option {
 func WithResetServerOptions(opts ...grpc.ServerOption) Option {
 	return func(config *Config) error {
 		config.ServerOptions = opts
+		return nil
+	}
+}
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(config *Config) error {
+		config.Logger = logger
 		return nil
 	}
 }

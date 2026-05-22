@@ -4,17 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/murouse/logo"
 	"github.com/murouse/soma/accessor/closer"
-	grpcgateway "github.com/murouse/soma/components/grpc-gateway"
-	grpcserver "github.com/murouse/soma/components/grpc-server"
+	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
+	grpcserver "github.com/murouse/soma/component/grpc-server"
+	httpserver "github.com/murouse/soma/component/http-server"
 
-	"github.com/murouse/soma/components/profiler"
-	"github.com/murouse/soma/components/scheduler"
+	"github.com/murouse/soma/component/profiler"
+	"github.com/murouse/soma/component/scheduler"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 )
@@ -25,6 +28,7 @@ type Entrypoint struct {
 	shutdownTimeout time.Duration
 	prepareTimeout  time.Duration
 	closer          Closer // Process.Shutdown для жизненного цикла серверов, а Closer для технических ресурсов
+	logger          *slog.Logger
 }
 
 type Closer interface {
@@ -69,26 +73,28 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 
 	// GRPC Server
 	if lo.IsNotNil(cfg.grpcServer) {
-		grpcServer := grpcserver.New(cfg.grpcServer)
-		processes = append(processes, grpcServer)
+		processes = append(processes, grpcserver.New(cfg.grpcServer))
 	}
 
 	// GRPC-Gateway Server
 	if lo.IsNotNil(cfg.grpcGateway) {
-		grpcGateway := grpcgateway.New(
+		processes = append(processes, grpcgateway.New(
 			cfg.grpcGateway,
 			lo.Map(cfg.grpcServer.Impls, func(impl grpcserver.ImplementationAdapter, _ int) grpcgateway.ImplementationAdapter {
 				return impl
 			}),
 			cfg.grpcServer.Port,
-		)
-		processes = append(processes, grpcGateway)
+		))
 	}
 
 	// Profiler
 	if lo.IsNotNil(cfg.profiler) {
-		prf := profiler.New(cfg.profiler)
-		processes = append(processes, prf)
+		processes = append(processes, profiler.New(cfg.profiler))
+	}
+
+	// HTTP Servers
+	for _, httpServer := range cfg.httpServer {
+		processes = append(processes, httpserver.New(&httpServer))
 	}
 
 	return &Entrypoint{
@@ -96,12 +102,14 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 		prepareTimeout:  cfg.prepareTimeout,
 		shutdownTimeout: cfg.shutdownTimeout,
 		closer:          closer.New(cfg.closures...),
+		logger:          cfg.logger,
 	}, nil
 }
 
 // Run запускает все зарегистрированные процессы конкурентно и ожидает их завершения.
 func (e *Entrypoint) Run(ctx context.Context) error {
 	// Фаза Prepare (последовательная)
+	e.logger.DebugContext(ctx, "prepare phase")
 	prepareCtx, prepareCancel := context.WithTimeout(ctx, e.prepareTimeout)
 	defer prepareCancel()
 	for _, process := range e.processes {
@@ -111,6 +119,7 @@ func (e *Entrypoint) Run(ctx context.Context) error {
 	}
 
 	// Фаза Run
+	e.logger.DebugContext(ctx, "run phase")
 	runCtx, runCancel := context.WithCancel(ctx) // для того, чтобы отменить в случае получения сигнала
 	defer runCancel()
 	runEG, runCtx := errgroup.WithContext(runCtx) // ддя того, чтобы отменился в случае ошибки в одном из Run
@@ -129,29 +138,23 @@ func (e *Entrypoint) Run(ctx context.Context) error {
 
 	select {
 	case sig := <-exitChan:
-		fmt.Printf("received signal: %v, initiating shutdown\n", sig)
+		e.logger.InfoContext(ctx, "received signal, initiating shutdown", slog.String("signal", sig.String()))
 		runCancel()
 	case <-runCtx.Done():
-		fmt.Println("context canceled, initiating shutdown")
+		e.logger.InfoContext(ctx, "context canceled, initiating shutdown")
 	}
 
 	// Фаза Shutdown (последовательная, LIFO)
 	// Завершаем процессы
+	e.logger.DebugContext(ctx, "shutdown phase")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), e.shutdownTimeout)
 	defer shutdownCancel()
 	for i := len(e.processes) - 1; i >= 0; i-- {
 		if err := e.processes[i].Shutdown(shutdownCtx); err != nil {
-			fmt.Printf("process shutdown error: %v\n", err)
+			e.logger.ErrorContext(ctx, "process shutdown", logo.Error(err))
 		}
 	}
 
-	// Ждем завершения всех процессов
-	err := runEG.Wait()
-
-	// Закрываем ресурсы
-	if closeErr := e.closer.Close(shutdownCtx); err != nil {
-		err = errors.Join(err, closeErr)
-	}
-
-	return err
+	// Ждем завершения всех процессов и закрываем ресурсы
+	return errors.Join(runEG.Wait(), e.closer.Close(shutdownCtx))
 }

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	httpserver "github.com/murouse/soma/component/http-server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -24,21 +24,30 @@ type Server struct {
 	impls    []ImplementationAdapter
 	grpcPort int
 
+	logger         *slog.Logger
 	grpcClientConn *grpc.ClientConn
-	server         *http.Server
+
+	*httpserver.Server
 }
 
 func New(cfg *Config, impls []ImplementationAdapter, grpcPort int) *Server {
-	return &Server{cfg: cfg, impls: impls, grpcPort: grpcPort}
+	return &Server{cfg: cfg, impls: impls, grpcPort: grpcPort, logger: cfg.Logger}
 }
 
 func (s *Server) Prepare(ctx context.Context) error {
-	runtimeServeMux := runtime.NewServeMux(s.cfg.ServeMuxOptions...)
+	runtimeServeMux := runtime.NewServeMux(s.cfg.ServeMuxOptions...) // Внутренний роутер grpc-gateway
 
-	router := chi.NewRouter()
-	router.Use(middleware.Recoverer)
-	router.Mount("/", runtimeServeMux)
+	mainMux := http.NewServeMux()
 
+	// Регистрируем пользовательские кастомные хендлеры
+	for _, httpHandler := range s.cfg.HttpHandlers {
+		mainMux.Handle(httpHandler.pattern, httpHandler.handler)
+	}
+
+	// Регистрируем grpc-gateway как catch-all fallback хендлер для всего остального
+	mainMux.Handle("/", runtimeServeMux)
+
+	// Инициализируем gRPC-клиент для проксирования
 	var err error
 	s.grpcClientConn, err = grpc.NewClient(fmt.Sprintf(":%d", s.grpcPort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -49,43 +58,19 @@ func (s *Server) Prepare(ctx context.Context) error {
 	}
 
 	for _, impl := range s.impls {
-		fmt.Printf("Registering grpc gateway implementation\n")
 		err = errors.Join(err, impl.RegisterHandler(ctx, runtimeServeMux, s.grpcClientConn))
 	}
 	if err != nil {
 		return fmt.Errorf("register gateway: %w", err)
 	}
 
-	handler := cors.AllowAll().Handler(router)
+	handler := cors.AllowAll().Handler(mainMux)
 
-	s.server = &http.Server{
+	s.Server = httpserver.New(&httpserver.Config{
+		Port:    s.cfg.Port,
 		Handler: handler,
-		Addr:    fmt.Sprintf(":%d", s.cfg.Port),
-	}
-
-	return nil
-}
-
-func (s *Server) Run(ctx context.Context) error {
-	fmt.Printf("run serving grpc-gateway at %d\n", s.cfg.Port)
-	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("listen and serve: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Server) Shutdown(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, s.cfg.ShutdownTimeout)
-	defer cancel()
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("shutdown server: %w", err)
-	}
-
-	if err := s.grpcClientConn.Close(); err != nil {
-		return fmt.Errorf("close grpc client conn: %w", err)
-	}
+		Logger:  s.logger,
+	})
 
 	return nil
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
+	"strconv"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -21,25 +23,25 @@ type ImplementationAdapter interface {
 type Server struct {
 	cfg *Config
 
+	logger *slog.Logger
 	server *grpc.Server
 }
 
 func New(cfg *Config) *Server {
 	return &Server{
-		cfg: cfg,
+		cfg:    cfg,
+		logger: cfg.Logger,
 	}
 }
 
-func (s *Server) Prepare(_ context.Context) error {
+func (s *Server) Prepare(ctx context.Context) error {
 	s.server = grpc.NewServer(s.cfg.ServerOptions...)
 
 	for _, impl := range s.cfg.Impls {
-		fmt.Printf("RegisterServer grpc\n")
 		impl.RegisterServer(s.server)
 	}
 
 	if s.cfg.ReflectionEnabled {
-		fmt.Printf("ReflectionEnabled grpc\n")
 		reflection.Register(s.server)
 	}
 
@@ -47,12 +49,12 @@ func (s *Server) Prepare(_ context.Context) error {
 }
 
 func (s *Server) Run(ctx context.Context) error {
+	s.logger.InfoContext(ctx, "serving grpc at", slog.Int("port", s.cfg.Port), slog.String("addr", "http://localhost:"+strconv.Itoa(s.cfg.Port)))
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", fmt.Sprintf(":%d", s.cfg.Port))
 	if err != nil {
 		return fmt.Errorf("listen: %v", err)
 	}
 
-	fmt.Printf("run serving grpc at %d\n", s.cfg.Port)
 	if err = s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 		return fmt.Errorf("serve: %w", err)
 	}
@@ -60,7 +62,7 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Shutdown(_ context.Context) error {
+func (s *Server) Shutdown(ctx context.Context) error {
 	s.server.GracefulStop()
 	return nil
 }

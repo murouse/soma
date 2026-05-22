@@ -2,9 +2,11 @@ package grpcgateway
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/murouse/logo"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -17,17 +19,9 @@ func Default() *Config {
 				MarshalOptions: protojson.MarshalOptions{UseProtoNames: false, EmitUnpopulated: true},
 			}}),
 		},
+		HttpHandlers: []httpHandlerConfig{},
+		Logger:       slog.Default().With(logo.Component("grpc-gateway")),
 	}
-}
-
-func (c *Config) Apply(opts ...Option) error {
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return fmt.Errorf("apply option: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func DefaultWith(opts ...Option) (*Config, error) {
