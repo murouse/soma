@@ -10,6 +10,8 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"google.golang.org/grpc/reflection"
 )
@@ -36,6 +38,10 @@ func New(cfg *Config) *Server {
 
 func (s *Server) Prepare(ctx context.Context) error {
 	s.server = grpc.NewServer(s.cfg.ServerOptions...)
+
+	if s.cfg.HealthServerEnabled {
+		healthpb.RegisterHealthServer(s.server, health.NewServer())
+	}
 
 	for _, impl := range s.cfg.Impls {
 		impl.RegisterServer(s.server)

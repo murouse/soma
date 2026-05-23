@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
+	httpmiddleware "github.com/murouse/soma/accessor/middleware/http-middleware"
 )
 
 func Default(port int, handler http.Handler) *Config {
+	interceptorManager := httpmiddleware.NewManager(slog.Default().With(attr.Component("middleware")))
+
 	return &Config{
 		Port:              port,
 		Handler:           handler,
@@ -21,10 +23,11 @@ func Default(port int, handler http.Handler) *Config {
 		MaxHeaderBytes:    0,
 		ShutdownTimeout:   0,
 		Middlewares: []func(next http.Handler) http.Handler{
-			middleware.Recoverer,
-			middleware.Logger,
+			interceptorManager.LoggingAttrsMiddleware,
+			interceptorManager.LoggingMiddleware,
+			interceptorManager.RecoveryMiddleware,
 		},
-		Logger: slog.Default().With(logo.Component("http-server")),
+		Logger: slog.Default().With(attr.Component("http-server")),
 	}
 }
 

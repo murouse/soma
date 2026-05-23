@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
+	"github.com/samber/lo"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -19,8 +20,9 @@ func Default() *Config {
 				MarshalOptions: protojson.MarshalOptions{UseProtoNames: false, EmitUnpopulated: true},
 			}}),
 		},
-		HttpHandlers: []httpHandlerConfig{},
-		Logger:       slog.Default().With(logo.Component("grpc-gateway")),
+		HttpHandlers:       []httpHandlerConfig{},
+		HealthEndpointPath: lo.ToPtr("/healthz"),
+		Logger:             slog.Default().With(attr.Component("grpc-gateway")),
 	}
 }
 

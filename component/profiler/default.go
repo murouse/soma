@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
 )
 
 func Default() *Config {
@@ -13,7 +13,7 @@ func Default() *Config {
 		Port:              1491,
 		ShutdownTimeout:   time.Second,
 		ReadHeaderTimeout: time.Minute,
-		Logger:            slog.Default().With(logo.Component("profiler")),
+		Logger:            slog.Default().With(attr.Component("profiler")),
 	}
 }
 

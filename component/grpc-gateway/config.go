@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	Port            int
-	ShutdownTimeout time.Duration
-	ServeMuxOptions []runtime.ServeMuxOption
-	HttpHandlers    []httpHandlerConfig
+	Port               int
+	ShutdownTimeout    time.Duration
+	ServeMuxOptions    []runtime.ServeMuxOption
+	HttpHandlers       []httpHandlerConfig
+	HealthEndpointPath *string
 
 	Logger *slog.Logger
 }
@@ -72,6 +73,13 @@ func WithLogger(logger *slog.Logger) Option {
 func WithHttpHandler(pattern string, handler http.Handler) Option {
 	return func(config *Config) error {
 		config.HttpHandlers = append(config.HttpHandlers, httpHandlerConfig{pattern, handler})
+		return nil
+	}
+}
+
+func WithHealthEndpoint(path *string) Option {
+	return func(config *Config) error {
+		config.HealthEndpointPath = path
 		return nil
 	}
 }

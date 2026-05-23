@@ -3,11 +3,11 @@ module github.com/murouse/soma
 go 1.25.0
 
 require (
-	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 	github.com/go-co-op/gocron/v2 v2.21.2
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
-	github.com/murouse/logo v1.0.3-0.20260521073909-03123b65d0e3
+	github.com/murouse/logo v1.0.3
 	github.com/samber/lo v1.53.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.81.1

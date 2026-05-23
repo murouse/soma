@@ -5,14 +5,14 @@ import (
 	"log/slog"
 
 	"github.com/go-co-op/gocron/v2"
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
 )
 
 func Default() *Config {
 	return &Config{
 		Jobs:             []Job{},
 		SchedulerOptions: []gocron.SchedulerOption{},
-		Logger:           slog.Default().With(logo.Component("scheduler")),
+		Logger:           slog.Default().With(attr.Component("scheduler")),
 	}
 }
 

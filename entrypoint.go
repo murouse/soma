@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
 	"github.com/murouse/soma/accessor/closer"
 	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
 	grpcserver "github.com/murouse/soma/component/grpc-server"
@@ -151,7 +151,7 @@ func (e *Entrypoint) Run(ctx context.Context) error {
 	defer shutdownCancel()
 	for i := len(e.processes) - 1; i >= 0; i-- {
 		if err := e.processes[i].Shutdown(shutdownCtx); err != nil {
-			e.logger.ErrorContext(ctx, "process shutdown", logo.Error(err))
+			e.logger.ErrorContext(ctx, "process shutdown", attr.Error(err))
 		}
 	}
 

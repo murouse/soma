@@ -4,17 +4,28 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
+	"github.com/murouse/soma/accessor/middleware/grpc-interceptor"
 	"google.golang.org/grpc"
 )
 
 func Default() *Config {
+	interceptorManager := grpcinterceptor.NewManager(slog.Default().With(attr.Component("interceptor")))
+
 	return &Config{
-		Port:              1482,
-		ReflectionEnabled: true,
-		Impls:             []ImplementationAdapter{},
-		ServerOptions:     []grpc.ServerOption{},
-		Logger:            slog.Default().With(logo.Component("grpc-server")),
+		Port:                1482,
+		ReflectionEnabled:   true,
+		HealthServerEnabled: true,
+		Impls:               []ImplementationAdapter{},
+		ServerOptions: []grpc.ServerOption{
+			grpc.ChainUnaryInterceptor(
+				interceptorManager.LoggingAttrsUnaryInterceptor(),
+				interceptorManager.LoggingUnaryInterceptor(),
+				interceptorManager.RecoveryUnaryInterceptor(),
+			),
+			grpc.ChainStreamInterceptor(), // todo
+		},
+		Logger: slog.Default().With(attr.Component("grpc-server")),
 	}
 }
 

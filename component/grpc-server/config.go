@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	Port              int
-	ReflectionEnabled bool
-	Impls             []ImplementationAdapter
-	ServerOptions     []grpc.ServerOption
-	Logger            *slog.Logger
+	Port                int
+	ReflectionEnabled   bool
+	HealthServerEnabled bool
+	Impls               []ImplementationAdapter
+	ServerOptions       []grpc.ServerOption
+	Logger              *slog.Logger
 }
 
 func (c *Config) Apply(opts ...Option) error {
@@ -65,6 +66,13 @@ func WithResetServerOptions(opts ...grpc.ServerOption) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(config *Config) error {
 		config.Logger = logger
+		return nil
+	}
+}
+
+func WithHealthServer(enabled bool) Option {
+	return func(config *Config) error {
+		config.HealthServerEnabled = enabled
 		return nil
 	}
 }

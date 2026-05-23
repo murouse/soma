@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/murouse/logo"
+	"github.com/murouse/logo/attr"
 	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
 	grpcserver "github.com/murouse/soma/component/grpc-server"
 	httpserver "github.com/murouse/soma/component/http-server"
@@ -23,7 +23,7 @@ func Default() *EntrypointConfig {
 		prepareTimeout:  time.Second * 5,
 		shutdownTimeout: time.Second * 5,
 		closures:        []func() error{},
-		logger:          slog.Default().With(logo.Component("entrypoint")), // TODO заменить
+		logger:          slog.Default().With(attr.Component("entrypoint")), // TODO заменить
 		httpServer:      []httpserver.Config{},
 	}
 }
