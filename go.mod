@@ -5,9 +5,10 @@ go 1.25.0
 require (
 	github.com/go-chi/cors v1.2.2
 	github.com/go-co-op/gocron/v2 v2.21.2
+	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
-	github.com/murouse/logo v1.0.3
+	github.com/murouse/logo v1.0.5
 	github.com/samber/lo v1.53.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.81.1
@@ -15,7 +16,6 @@ require (
 )
 
 require (
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

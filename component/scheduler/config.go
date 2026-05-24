@@ -8,9 +8,11 @@ import (
 )
 
 type Config struct {
-	Jobs             []Job
-	SchedulerOptions []gocron.SchedulerOption
-	Logger           *slog.Logger
+	Jobs              []Job
+	SchedulerOptions  []gocron.SchedulerOption
+	Logger            *slog.Logger
+	LoggingJobEnabled bool
+	GlobalJobOptions  []gocron.JobOption
 }
 
 type Job struct {
@@ -55,6 +57,28 @@ func WithResetSchedulerOptions(opts ...gocron.SchedulerOption) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(config *Config) error {
 		config.Logger = logger
+		return nil
+	}
+}
+
+// WithGlobalJobOptions - Use it instead gocron.WithGlobalJobOptions
+func WithGlobalJobOptions(opts ...gocron.JobOption) Option {
+	return func(config *Config) error {
+		config.GlobalJobOptions = append(config.GlobalJobOptions, opts...)
+		return nil
+	}
+}
+
+func WithResetGlobalJobOptions(opts ...gocron.JobOption) Option {
+	return func(config *Config) error {
+		config.GlobalJobOptions = opts
+		return nil
+	}
+}
+
+func WithLoggingJobEnabled(enabled bool) Option {
+	return func(config *Config) error {
+		config.LoggingJobEnabled = enabled
 		return nil
 	}
 }
