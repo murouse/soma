@@ -35,8 +35,8 @@ type Closer interface {
 	Close(ctx context.Context) error
 }
 
-// NewEntrypointRun инициализирует и запускает точку входа в рамках текущего контекста.
-func NewEntrypointRun(ctx context.Context, opts ...EntrypointOption) error {
+// Run инициализирует и запускает точку входа в рамках текущего контекста.
+func Run(ctx context.Context, opts ...EntrypointOption) error {
 	entrypoint, err := NewEntrypoint(opts...)
 	if err != nil {
 		return fmt.Errorf("new entrypoint: %w", err)
