@@ -13,10 +13,15 @@ import (
 	"github.com/murouse/soma/component/scheduler"
 )
 
-func Default() *EntrypointConfig {
+func Default() (*EntrypointConfig, error) {
+	grpcServer, err := grpcserver.Default()
+	if err != nil {
+		return nil, fmt.Errorf("grpc server default: %w", err)
+	}
+
 	return &EntrypointConfig{
 		scheduler:       scheduler.Default(),
-		grpcServer:      grpcserver.Default(),
+		grpcServer:      grpcServer,
 		grpcGateway:     grpcgateway.Default(),
 		profiler:        profiler.Default(),
 		customProcesses: []Process{},
@@ -25,12 +30,16 @@ func Default() *EntrypointConfig {
 		closures:        []func() error{},
 		logger:          slog.Default().With(attr.Component("entrypoint")), // TODO заменить
 		httpServer:      []httpserver.Config{},
-	}
+	}, nil
 }
 
 func DefaultWith(opts ...EntrypointOption) (*EntrypointConfig, error) {
-	cfg := Default()
-	if err := cfg.Apply(opts...); err != nil {
+	cfg, err := Default()
+	if err != nil {
+		return nil, fmt.Errorf("default: %w", err)
+	}
+
+	if err = cfg.Apply(opts...); err != nil {
 		return nil, fmt.Errorf("apply options: %w", err)
 	}
 	return cfg, nil

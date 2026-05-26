@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	grpcinterceptor "github.com/murouse/soma/accessor/middleware/grpc-interceptor"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -37,6 +38,10 @@ func New(cfg *Config) *Server {
 }
 
 func (s *Server) Prepare(ctx context.Context) error {
+	s.cfg.ServerOptions = append(s.cfg.ServerOptions, grpc.ChainUnaryInterceptor(
+		grpcinterceptor.UnaryTimeoutInterceptor(s.cfg.UnaryTimeout),
+	))
+
 	s.server = grpc.NewServer(s.cfg.ServerOptions...)
 
 	if s.cfg.HealthServerEnabled {
@@ -69,6 +74,19 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.server.GracefulStop()
-	return nil
+	stopped := make(chan struct{})
+
+	go func() {
+		s.server.GracefulStop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+		return nil
+	case <-ctx.Done():
+		s.logger.WarnContext(ctx, "graceful shutdown timeout exceeded, forcing stop")
+		s.server.Stop() // Жесткий stop, закрывает все соединения
+		return ctx.Err()
+	}
 }

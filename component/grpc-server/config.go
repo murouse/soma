@@ -3,6 +3,7 @@ package grpcserver
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"google.golang.org/grpc"
 )
@@ -13,6 +14,7 @@ type Config struct {
 	HealthServerEnabled bool
 	Impls               []ImplementationAdapter
 	ServerOptions       []grpc.ServerOption
+	UnaryTimeout        time.Duration
 	Logger              *slog.Logger
 }
 
@@ -73,6 +75,13 @@ func WithLogger(logger *slog.Logger) Option {
 func WithHealthServer(enabled bool) Option {
 	return func(config *Config) error {
 		config.HealthServerEnabled = enabled
+		return nil
+	}
+}
+
+func WithUnaryTimeout(timeout time.Duration) Option {
+	return func(config *Config) error {
+		config.UnaryTimeout = timeout
 		return nil
 	}
 }

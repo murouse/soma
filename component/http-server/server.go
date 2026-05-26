@@ -19,13 +19,18 @@ type Server struct {
 }
 
 func New(cfg *Config) *Server {
+	handler := cfg.Handler
+	for i := len(cfg.Middlewares) - 1; i >= 0; i-- {
+		handler = cfg.Middlewares[i](handler)
+	}
+
 	return &Server{
 		port:            cfg.Port,
 		shutdownTimeout: cfg.ShutdownTimeout,
 		logger:          cfg.Logger,
 		Server: &http.Server{
 			Addr:              fmt.Sprintf(":%d", cfg.Port),
-			Handler:           cfg.Handler,
+			Handler:           handler,
 			TLSConfig:         cfg.TLSConfig,
 			ReadTimeout:       cfg.ReadTimeout,
 			ReadHeaderTimeout: cfg.ReadHeaderTimeout,
