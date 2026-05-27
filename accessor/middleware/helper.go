@@ -37,9 +37,7 @@ func LogRequestFinal(ctx context.Context, logger *slog.Logger, start time.Time, 
 		msg = failureMessage
 	}
 
-	attrs := make([]any, 0, 1+len(extraAttrs))
-	attrs = append(attrs, slog.Duration(attrDurationKey, duration))
-	attrs = append(attrs, extraAttrs...)
+	attrs := append([]any{slog.Duration(attrDurationKey, duration)}, extraAttrs...)
 
 	logger.Log(ctx, level, msg, attrs...)
 }

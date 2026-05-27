@@ -34,8 +34,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF2
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0/go.mod h1:Hyl3n6Twe1hvtd9XUXDec4pTvgMSEixRuQKPTMH2bNs=
 github.com/jonboulle/clockwork v0.5.0 h1:Hyh9A8u51kptdkR+cqRpT1EebBwTn1oK9YfGYbdFz6I=
 github.com/jonboulle/clockwork v0.5.0/go.mod h1:3mZlmanh0g2NDKO5TWZVJAfofYk64M7XN3SzBPjZF60=
-github.com/murouse/logo v1.0.6 h1:bUE0VbR0T/QJjusSjIg46aFVq3/1BkadMEQ7du6Qt6Q=
-github.com/murouse/logo v1.0.6/go.mod h1:stBJ33sKglee3IZ+RG5wWb79TaVLoD6mD7UsjHpS1bQ=
+github.com/murouse/logo v1.0.9 h1:6fv3NPYL74QJ/4YTDkVL3nlKX+qpmR06PFBsuqUz6Ko=
+github.com/murouse/logo v1.0.9/go.mod h1:UKk+je2mkKcRBHdyXVqPpz9G7MouM7ghK/CvnEDUFWI=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=

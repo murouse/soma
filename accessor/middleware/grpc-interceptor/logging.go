@@ -19,6 +19,8 @@ const (
 	attrGrpcGroupKey  string = "grpc"
 	attrGrpcMethodKey string = "method"
 	attrGrpcPeerKey   string = "peer"
+	attrGrpcCodeKey   string = "code"
+	attrGrpcStatusKey string = "status"
 
 	attrGrpcMetadataGroupKey string = "metadata"
 )
@@ -56,15 +58,19 @@ func (m *Manager) LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 
 		st, _ := status.FromError(err)
 		extra := []any{
-			slog.Int("grpc.code", int(st.Code())),
-			slog.String("grpc.status", st.Code().String()),
+			slog.GroupAttrs(attrGrpcGroupKey,
+				slog.Int(attrGrpcCodeKey, int(st.Code())),
+				slog.String(attrGrpcStatusKey, st.Code().String()),
+			),
 		}
 
 		if err != nil {
 			extra = append(extra, attr.Error(err))
 		}
 
-		middleware.LogRequestFinal(ctx, m.logger, start, err != nil, extra...)
+		// Вызываем общий логгер финала
+		isError := err != nil
+		middleware.LogRequestFinal(ctx, m.logger, start, isError, extra...)
 
 		return res, err
 	}

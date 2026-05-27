@@ -14,6 +14,8 @@ const (
 	attrHttpMethodKey string = "method"
 	attrHttpPathKey   string = "path"
 	attrHttpRemoteKey string = "remote"
+	attrHttpCodeKey   string = "code"
+	attrHttpStatusKey string = "status"
 
 	attrHeaderGroupKey string = "header"
 )
@@ -67,9 +69,9 @@ func (m *Manager) LoggingMiddleware(next http.Handler) http.Handler {
 
 		// Вызываем общий логгер финала
 		isError := rw.statusCode >= http.StatusBadRequest
-		middleware.LogRequestFinal(r.Context(), m.logger, start, isError,
-			slog.Int("http.code", rw.statusCode),
-			slog.String("http.status", http.StatusText(rw.statusCode)),
-		)
+		middleware.LogRequestFinal(r.Context(), m.logger, start, isError, slog.GroupAttrs(attrHttpGroupKey,
+			slog.Int(attrHttpCodeKey, rw.statusCode),
+			slog.String(attrHttpStatusKey, http.StatusText(rw.statusCode)),
+		))
 	})
 }
