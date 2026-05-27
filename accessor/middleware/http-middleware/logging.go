@@ -67,6 +67,9 @@ func (m *Manager) LoggingMiddleware(next http.Handler) http.Handler {
 
 		// Вызываем общий логгер финала
 		isError := rw.statusCode >= http.StatusBadRequest
-		middleware.LogRequestFinal(r.Context(), m.logger, start, isError, slog.Int("http.code", rw.statusCode))
+		middleware.LogRequestFinal(r.Context(), m.logger, start, isError,
+			slog.Int("http.code", rw.statusCode),
+			slog.String("http.status", http.StatusText(rw.statusCode)),
+		)
 	})
 }
