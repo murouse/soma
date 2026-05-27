@@ -74,11 +74,12 @@ func (s *Server) Prepare(ctx context.Context) error {
 
 	handler := cors.AllowAll().Handler(mainMux)
 
-	s.Server = httpserver.New(&httpserver.Config{
-		Port:    s.cfg.Port,
-		Handler: handler,
-		Logger:  s.logger,
-	})
+	s.Server, err = httpserver.NewDefaultWith(s.cfg.Port, handler,
+		httpserver.WithLogger(s.logger),
+	)
+	if err != nil {
+		return fmt.Errorf("new http server: %w", err)
+	}
 
 	return nil
 }

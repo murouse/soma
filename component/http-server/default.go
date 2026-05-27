@@ -38,3 +38,11 @@ func DefaultWith(port int, handler http.Handler, opts ...Option) (*Config, error
 	}
 	return cfg, nil
 }
+
+func NewDefaultWith(port int, handler http.Handler, opts ...Option) (*Server, error) {
+	cfg, err := DefaultWith(port, handler, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("default with: %w", err)
+	}
+	return New(cfg), nil
+}

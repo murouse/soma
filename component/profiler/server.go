@@ -2,6 +2,7 @@ package profiler
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
@@ -64,12 +65,14 @@ func (s *Server) Prepare(ctx context.Context) error {
 	// the command line of the current program.
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 
-	s.Server = httpserver.New(&httpserver.Config{
-		Port:              s.cfg.Port,
-		Handler:           mux,
-		Logger:            s.logger,
-		ReadHeaderTimeout: s.cfg.ReadHeaderTimeout,
-	})
+	var err error
+	s.Server, err = httpserver.NewDefaultWith(s.cfg.Port, mux,
+		httpserver.WithLogger(s.logger),
+		httpserver.WithReadHeaderTimeout(s.cfg.ReadHeaderTimeout),
+	)
+	if err != nil {
+		return fmt.Errorf("new http server: %w", err)
+	}
 
 	return nil
 }

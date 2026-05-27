@@ -63,3 +63,10 @@ func WithResetMiddleware(middleware ...func(next http.Handler) http.Handler) Opt
 		return nil
 	}
 }
+
+func WithReadHeaderTimeout(timeout time.Duration) Option {
+	return func(c *Config) error {
+		c.ReadHeaderTimeout = timeout
+		return nil
+	}
+}
