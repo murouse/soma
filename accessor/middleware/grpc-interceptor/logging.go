@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -53,10 +54,16 @@ func (m *Manager) LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 		start := time.Now()
 		res, err := handler(ctx, req)
 
-		var extra []any
-		if err != nil {
-			extra = []any{attr.Error(err)}
+		st, _ := status.FromError(err)
+		extra := []any{
+			slog.Int("grpc.code", int(st.Code())),
+			slog.String("grpc.status", st.Code().String()),
 		}
+
+		if err != nil {
+			extra = append(extra, attr.Error(err))
+		}
+
 		middleware.LogRequestFinal(ctx, m.logger, start, err != nil, extra...)
 
 		return res, err

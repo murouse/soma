@@ -56,7 +56,7 @@ func (m *Manager) LoggingAttrsMiddleware(next http.Handler) http.Handler {
 
 func (m *Manager) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
+		if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" { // todo
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -67,6 +67,6 @@ func (m *Manager) LoggingMiddleware(next http.Handler) http.Handler {
 
 		// Вызываем общий логгер финала
 		isError := rw.statusCode >= http.StatusBadRequest
-		middleware.LogRequestFinal(r.Context(), m.logger, start, isError, slog.Int("status", rw.statusCode))
+		middleware.LogRequestFinal(r.Context(), m.logger, start, isError, slog.Int("http.code", rw.statusCode))
 	})
 }
