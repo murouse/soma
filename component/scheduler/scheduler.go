@@ -20,15 +20,15 @@ func New(cfg *Config) (*Scheduler, error) {
 	if cfg.LoggingJobEnabled {
 		cfg.GlobalJobOptions = append(cfg.GlobalJobOptions, gocron.WithEventListeners( // todo в default
 			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) { // лог перед стартом задачи
-				slog.Debug("job started", attr.JobName(jobName), attr.JobID(jobID.String()))
+				slog.Debug("job started", attr.JobName(jobName), attr.JobID(jobID))
 			}),
 
 			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) { // лог после успешного выполнения задачи
-				slog.Debug("job completed", attr.JobName(jobName), attr.JobID(jobID.String()))
+				slog.Debug("job completed", attr.JobName(jobName), attr.JobID(jobID))
 			}),
 
 			gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) { // лог если задача упала с ошибкой
-				slog.Error("job failed", attr.JobName(jobName), attr.JobID(jobID.String()), attr.Error(err))
+				slog.Error("job failed", attr.JobName(jobName), attr.JobID(jobID), attr.Error(err))
 			}),
 		))
 	}
@@ -52,7 +52,7 @@ func New(cfg *Config) (*Scheduler, error) {
 			return nil, fmt.Errorf("new job: %w", err)
 		}
 
-		cfg.Logger.Debug("job created", attr.JobName(j.Name()), attr.JobID(j.ID().String()))
+		cfg.Logger.Debug("job created", attr.JobName(j.Name()), attr.JobID(j.ID()))
 	}
 
 	return &Scheduler{

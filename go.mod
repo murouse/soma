@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
-	github.com/murouse/logo v1.0.5
+	github.com/murouse/logo v1.0.6
 	github.com/samber/lo v1.53.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.81.1
