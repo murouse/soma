@@ -22,7 +22,11 @@ func Default() *Config {
 		},
 		HttpHandlers:       []httpHandlerConfig{},
 		HealthEndpointPath: lo.ToPtr("/healthz"),
-		Logger:             slog.Default().With(attr.Component("grpc-gateway")),
+		Swagger: &swaggerConfig{
+			dirOnDisk: "./docs/swagger",
+			httpPath:  "/swagger/",
+		},
+		Logger: slog.Default().With(attr.Component("grpc-gateway")),
 	}
 }
 

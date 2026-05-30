@@ -15,8 +15,14 @@ type Config struct {
 	ServeMuxOptions    []runtime.ServeMuxOption
 	HttpHandlers       []httpHandlerConfig
 	HealthEndpointPath *string
+	Swagger            *swaggerConfig
 
 	Logger *slog.Logger
+}
+
+type swaggerConfig struct {
+	dirOnDisk string // "./deploy/swagger"
+	httpPath  string //  "/docs/"
 }
 
 type httpHandlerConfig struct {
@@ -80,6 +86,13 @@ func WithHttpHandler(pattern string, handler http.Handler) Option {
 func WithHealthEndpoint(path *string) Option {
 	return func(config *Config) error {
 		config.HealthEndpointPath = path
+		return nil
+	}
+}
+
+func WithSwagger(dirOnDisk string, httpPath string) Option {
+	return func(config *Config) error {
+		config.Swagger = &swaggerConfig{dirOnDisk, httpPath}
 		return nil
 	}
 }

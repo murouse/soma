@@ -62,6 +62,12 @@ func (s *Server) Prepare(ctx context.Context) error {
 		mainMux.Handle(httpHandler.pattern, httpHandler.handler)
 	}
 
+	// Регистрируем swagger file server
+	if s.cfg.Swagger != nil {
+		fileServer := http.FileServer(http.Dir(s.cfg.Swagger.dirOnDisk))
+		mainMux.Handle(s.cfg.Swagger.httpPath, http.StripPrefix(s.cfg.Swagger.httpPath, fileServer))
+	}
+
 	// Регистрируем grpc-gateway как catch-all fallback хендлер для всего остального
 	mainMux.Handle("/", runtimeServeMux)
 
