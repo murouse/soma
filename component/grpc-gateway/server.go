@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/cors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -64,6 +65,8 @@ func (s *Server) Prepare(ctx context.Context) error {
 
 	// Регистрируем swagger file server
 	if s.cfg.Swagger != nil {
+		s.logger.InfoContext(ctx, "handle swagger", slog.String("addr", "http://localhost:"+strconv.Itoa(s.cfg.Port)+s.cfg.Swagger.httpPath))
+
 		fileServer := http.FileServer(http.Dir(s.cfg.Swagger.dirOnDisk))
 		mainMux.Handle(s.cfg.Swagger.httpPath, http.StripPrefix(s.cfg.Swagger.httpPath, fileServer))
 	}
