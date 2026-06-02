@@ -24,7 +24,7 @@ type EntrypointConfig struct {
 	shutdownTimeout time.Duration
 	closures        []func() error
 	logger          *slog.Logger
-	httpServer      []httpserver.Config
+	httpServers     []httpserver.Config
 }
 
 func (c *EntrypointConfig) Validate() error {
@@ -144,7 +144,7 @@ func WithHttpServer(handler http.Handler, port int, opts ...httpserver.Option) E
 		if err != nil {
 			return err
 		}
-		c.httpServer = append(c.httpServer, *cfg)
+		c.httpServers = append(c.httpServers, *cfg)
 		return nil
 	}
 }

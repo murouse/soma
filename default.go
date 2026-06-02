@@ -28,8 +28,8 @@ func Default() (*EntrypointConfig, error) {
 		prepareTimeout:  time.Second * 5,
 		shutdownTimeout: time.Second * 5,
 		closures:        []func() error{},
-		logger:          slog.Default().With(attr.Component("entrypoint")), // TODO заменить
-		httpServer:      []httpserver.Config{},
+		logger:          slog.Default().With(attr.Component("entrypoint")),
+		httpServers:     []httpserver.Config{},
 	}, nil
 }
 

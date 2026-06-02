@@ -51,9 +51,16 @@ func WithAdapters(impls ...ImplementationAdapter) Option {
 	}
 }
 
-func WithServerOptions(opts ...grpc.ServerOption) Option {
+func WithAppendServerOptions(opts ...grpc.ServerOption) Option {
 	return func(config *Config) error {
 		config.ServerOptions = append(config.ServerOptions, opts...)
+		return nil
+	}
+}
+
+func WithPrependServerOptions(opts ...grpc.ServerOption) Option {
+	return func(config *Config) error {
+		config.ServerOptions = append(opts, config.ServerOptions...)
 		return nil
 	}
 }

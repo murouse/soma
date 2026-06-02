@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/cors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )
 
@@ -16,6 +17,7 @@ type Config struct {
 	HttpHandlers       []httpHandlerConfig
 	HealthEndpointPath *string
 	Swagger            *swaggerConfig
+	Cors               cors.Options
 
 	Logger *slog.Logger
 }
@@ -93,6 +95,13 @@ func WithHealthEndpoint(path *string) Option {
 func WithSwagger(dirOnDisk string, httpPath string) Option {
 	return func(config *Config) error {
 		config.Swagger = &swaggerConfig{dirOnDisk, httpPath}
+		return nil
+	}
+}
+
+func WithCors(cors cors.Options) Option {
+	return func(config *Config) error {
+		config.Cors = cors
 		return nil
 	}
 }

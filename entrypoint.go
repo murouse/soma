@@ -93,7 +93,7 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 	}
 
 	// HTTP Servers
-	for _, httpServer := range cfg.httpServer {
+	for _, httpServer := range cfg.httpServers {
 		processes = append(processes, httpserver.New(&httpServer))
 	}
 

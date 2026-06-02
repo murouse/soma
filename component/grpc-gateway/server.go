@@ -81,7 +81,7 @@ func (s *Server) Prepare(ctx context.Context) error {
 		return fmt.Errorf("register gateway: %w", err)
 	}
 
-	handler := cors.AllowAll().Handler(mainMux)
+	handler := cors.New(s.cfg.Cors).Handler(mainMux)
 
 	s.Server, err = httpserver.NewDefaultWith(s.cfg.Port, handler,
 		httpserver.WithLogger(s.logger),
