@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/murouse/logo"
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi"
+	"github.com/murouse/golgi/attr"
 	"github.com/murouse/soma/accessor/middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -41,7 +41,7 @@ func (m *Manager) LoggingAttrsUnaryInterceptor() grpc.UnaryServerInterceptor {
 				attrs = append(attrs, slog.GroupAttrs(attrGrpcMetadataGroupKey, metaAttrs...))
 			}
 		}
-		ctx = logo.WithAttrs(ctx, slog.GroupAttrs(attrGrpcGroupKey, attrs...))
+		ctx = golgi.WithAttrs(ctx, slog.GroupAttrs(attrGrpcGroupKey, attrs...))
 
 		return handler(ctx, req)
 	}

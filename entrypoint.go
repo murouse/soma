@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 	"github.com/murouse/soma/accessor/closer"
 	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
 	grpcserver "github.com/murouse/soma/component/grpc-server"

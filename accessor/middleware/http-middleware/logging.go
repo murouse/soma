@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/murouse/logo"
+	"github.com/murouse/golgi"
 	"github.com/murouse/soma/accessor/middleware"
 )
 
@@ -51,7 +51,7 @@ func (m *Manager) LoggingAttrsMiddleware(next http.Handler) http.Handler {
 			attrs = append(attrs, slog.GroupAttrs(attrHeaderGroupKey, metaAttrs...))
 		}
 
-		ctx := logo.WithAttrs(r.Context(), slog.GroupAttrs(attrHttpGroupKey, attrs...))
+		ctx := golgi.WithAttrs(r.Context(), slog.GroupAttrs(attrHttpGroupKey, attrs...))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

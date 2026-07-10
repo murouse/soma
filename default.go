@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
 	grpcserver "github.com/murouse/soma/component/grpc-server"
 	httpserver "github.com/murouse/soma/component/http-server"

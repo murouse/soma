@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 )
 
 func Default() *Config {

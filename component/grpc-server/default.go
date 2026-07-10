@@ -7,7 +7,7 @@ import (
 
 	bufprotovalidate "buf.build/go/protovalidate"
 	mwprotovalidate "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 	"github.com/murouse/soma/accessor/middleware/grpc-interceptor"
 	"google.golang.org/grpc"
 )

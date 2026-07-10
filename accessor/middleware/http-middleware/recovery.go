@@ -3,7 +3,7 @@ package httpmiddleware
 import (
 	"net/http"
 
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 )
 
 func (m *Manager) RecoveryMiddleware(next http.Handler) http.Handler {

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 	httpmiddleware "github.com/murouse/soma/accessor/middleware/http-middleware"
 )
 

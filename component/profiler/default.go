@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 )
 
 func Default() *Config {

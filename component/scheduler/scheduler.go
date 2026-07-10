@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 )
 
 // Scheduler является оберткой над планировщиком задач.

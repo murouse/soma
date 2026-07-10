@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/cors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/murouse/logo/attr"
+	"github.com/murouse/golgi/attr"
 	"github.com/samber/lo"
 	"google.golang.org/protobuf/encoding/protojson"
 )
