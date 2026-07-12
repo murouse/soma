@@ -6,16 +6,12 @@
 >
 > **It acts as the operational center of each runtime unit, responsible for sustaining execution, coordinating state, and integrating system-level signals such as communication, observability, and lifecycle events.**
 
----
-
 ## Основные возможности
 
 * **Декларативная конфигурация**: Настройка компонентов через систему `Functional Options`.
 * **Единый жизненный цикл**: Автоматическая обработка `Graceful Shutdown` для всех процессов.
 * **Модульность**: Легкое подключение gRPC, HTTP Gateway, Scheduler и pprof.
 * **Type-safe**: Полная поддержка типизации благодаря Go.
-
----
 
 ## Пример использования
 
@@ -39,8 +35,6 @@ func main() {
 }
 
 ```
-
----
 
 ## Установка
 
