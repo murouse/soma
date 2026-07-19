@@ -101,7 +101,7 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 		processes:       processes,
 		prepareTimeout:  cfg.prepareTimeout,
 		shutdownTimeout: cfg.shutdownTimeout,
-		closer:          closer.New(cfg.closures...),
+		closer:          closer.New(cfg.logger, cfg.closures...),
 		logger:          cfg.logger,
 	}, nil
 }

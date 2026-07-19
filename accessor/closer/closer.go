@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -12,11 +13,13 @@ import (
 type Closer struct {
 	mu       sync.Mutex
 	closures []func() error
+
+	logger *slog.Logger
 }
 
 // New создает новый экземпляр Closer.
-func New(closures ...func() error) *Closer {
-	return &Closer{closures: closures}
+func New(logger *slog.Logger, closures ...func() error) *Closer {
+	return &Closer{closures: closures, logger: logger}
 }
 
 // Add регистрирует функцию завершения работы.
@@ -37,6 +40,8 @@ func (c *Closer) Close(ctx context.Context) error {
 	errs := make([]error, 0, len(closures))
 
 	for i := len(closures) - 1; i >= 0; i-- {
+		c.logger.DebugContext(ctx, "closing resource", slog.Int("num", i))
+
 		if err := ctx.Err(); err != nil {
 			errs = append(errs, fmt.Errorf("closer stopped by context: %w", err))
 			break
