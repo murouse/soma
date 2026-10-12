@@ -10,9 +10,9 @@ import (
 type Config struct {
 	Jobs              []Job
 	SchedulerOptions  []gocron.SchedulerOption
-	Logger            *slog.Logger
-	LoggingJobEnabled bool
 	GlobalJobOptions  []gocron.JobOption
+	LoggingJobEnabled bool         // логировать старт, завершение и ошибки задач
+	Logger            *slog.Logger // nil — slog.Default()
 }
 
 type Job struct {
@@ -47,13 +47,6 @@ func WithSchedulerOptions(opts ...gocron.SchedulerOption) Option {
 	}
 }
 
-func WithResetSchedulerOptions(opts ...gocron.SchedulerOption) Option {
-	return func(config *Config) error {
-		config.SchedulerOptions = opts
-		return nil
-	}
-}
-
 func WithLogger(logger *slog.Logger) Option {
 	return func(config *Config) error {
 		config.Logger = logger
@@ -61,17 +54,11 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithGlobalJobOptions - Use it instead gocron.WithGlobalJobOptions
+// WithGlobalJobOptions задает опции для всех задач. Используйте ее вместо gocron.WithGlobalJobOptions:
+// та перезаписывается встроенными опциями логирования.
 func WithGlobalJobOptions(opts ...gocron.JobOption) Option {
 	return func(config *Config) error {
 		config.GlobalJobOptions = append(config.GlobalJobOptions, opts...)
-		return nil
-	}
-}
-
-func WithResetGlobalJobOptions(opts ...gocron.JobOption) Option {
-	return func(config *Config) error {
-		config.GlobalJobOptions = opts
 		return nil
 	}
 }

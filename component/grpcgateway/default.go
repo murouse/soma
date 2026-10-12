@@ -2,17 +2,16 @@ package grpcgateway
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/cors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/murouse/golgi/attr"
-	"github.com/samber/lo"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// Default возвращает конфигурацию, в которой swagger и CORS выключены:
+// каждое включается явно опциями WithSwaggerEnabled и WithCORSEnabled.
 func Default() *Config {
 	return &Config{
 		Port:            1480,
@@ -22,13 +21,11 @@ func Default() *Config {
 				MarshalOptions: protojson.MarshalOptions{UseProtoNames: false, EmitUnpopulated: true},
 			}}),
 		},
-		HttpHandlers:       []httpHandlerConfig{},
-		HealthEndpointPath: lo.ToPtr("/healthz"),
-		Swagger: &swaggerConfig{
-			dirOnDisk: "./docs/swagger",
-			httpPath:  "/swagger/",
-		},
-		Cors: cors.Options{
+		HealthEndpointEnabled: true,
+		HealthEndpointPath:    "/healthz",
+		SwaggerDir:            "./docs/swagger",
+		SwaggerPath:           "/swagger/",
+		CORSOptions: cors.Options{
 			AllowedOrigins: []string{"*"},
 			AllowedMethods: []string{
 				http.MethodHead,
@@ -41,7 +38,6 @@ func Default() *Config {
 			AllowedHeaders:   []string{"*"},
 			AllowCredentials: false,
 		},
-		Logger: slog.Default().With(attr.Component("grpc-gateway")),
 	}
 }
 

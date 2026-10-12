@@ -2,18 +2,14 @@ package profiler
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
-
-	"github.com/murouse/golgi/attr"
 )
 
 func Default() *Config {
 	return &Config{
-		Port:              1491,
-		ShutdownTimeout:   time.Second,
-		ReadHeaderTimeout: time.Minute,
-		Logger:            slog.Default().With(attr.Component("profiler")),
+		Host:            "127.0.0.1", // только локально; в k8s доступен через kubectl port-forward
+		Port:            1491,
+		ShutdownTimeout: time.Second,
 	}
 }
 

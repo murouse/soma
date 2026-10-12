@@ -3,23 +3,29 @@ package profiler
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"net"
 	"net/http"
 	"net/http/pprof"
 
-	httpserver "github.com/murouse/soma/component/http-server"
+	"github.com/murouse/soma/component/httpserver"
 )
 
 // Server представляет собой HTTP-сервер для профилирования через pprof.
+//
+// Импорт net/http/pprof в init() регистрирует /debug/pprof в http.DefaultServeMux.
+// Поэтому httpserver отказывается обслуживать DefaultServeMux (ErrDefaultServeMux),
+// и в собственном коде отдавать его наружу тоже нельзя.
 type Server struct {
-	cfg *Config
-
-	logger *slog.Logger
-	*httpserver.Server
+	cfg        *Config
+	httpServer *httpserver.Server
 }
 
 func New(cfg *Config) *Server {
-	return &Server{cfg: cfg, logger: cfg.Logger}
+	return &Server{cfg: cfg}
+}
+
+func (s *Server) Name() string {
+	return "profiler"
 }
 
 func (s *Server) Prepare(ctx context.Context) error {
@@ -66,13 +72,32 @@ func (s *Server) Prepare(ctx context.Context) error {
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 
 	var err error
-	s.Server, err = httpserver.NewDefaultWith(s.cfg.Port, mux,
-		httpserver.WithLogger(s.logger),
-		httpserver.WithReadHeaderTimeout(s.cfg.ReadHeaderTimeout),
+	s.httpServer, err = httpserver.NewDefaultWith(s.cfg.Port, mux,
+		httpserver.WithName(s.Name()),
+		httpserver.WithLogger(s.cfg.Logger),
+		httpserver.WithHost(s.cfg.Host),
+		httpserver.WithShutdownTimeout(s.cfg.ShutdownTimeout),
 	)
 	if err != nil {
 		return fmt.Errorf("new http server: %w", err)
 	}
 
+	if err = s.httpServer.Prepare(ctx); err != nil {
+		return fmt.Errorf("prepare http server: %w", err)
+	}
+
 	return nil
+}
+
+// Addr возвращает фактический адрес после Prepare (полезно при порте 0).
+func (s *Server) Addr() net.Addr {
+	return s.httpServer.Addr()
+}
+
+func (s *Server) Run(ctx context.Context) error {
+	return s.httpServer.Run(ctx)
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.httpServer.Shutdown(ctx)
 }

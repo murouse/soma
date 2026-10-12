@@ -9,8 +9,7 @@ import (
 const (
 	attrDurationKey string = "duration"
 
-	successMessage string = "successfully handled request"
-	failureMessage string = "error handling request"
+	requestHandledMessage string = "request handled"
 )
 
 // ExtractMetaAttrs собирает только разрешенные заголовки из абстрактной мапы.
@@ -25,19 +24,9 @@ func ExtractMetaAttrs(allowedKeys []string, getFunc func(string) []string) []slo
 	return metaAttrs
 }
 
-// LogRequestFinal инкапсулирует общую логику записи финального лога.
-func LogRequestFinal(ctx context.Context, logger *slog.Logger, start time.Time, isError bool, extraAttrs ...any) {
-	duration := time.Since(start)
-
-	level := slog.LevelInfo
-	msg := successMessage
-
-	if isError {
-		level = slog.LevelError
-		msg = failureMessage
-	}
-
-	attrs := append([]any{slog.Duration(attrDurationKey, duration)}, extraAttrs...)
-
-	logger.Log(ctx, level, msg, attrs...)
+// LogRequestFinal пишет финальный лог запроса. Уровень выбирает вызывающий по коду ответа:
+// успех — Info, ошибка клиента — Warn, ошибка сервиса — Error.
+func LogRequestFinal(ctx context.Context, logger *slog.Logger, level slog.Level, start time.Time, extraAttrs ...any) {
+	attrs := append([]any{slog.Duration(attrDurationKey, time.Since(start))}, extraAttrs...)
+	logger.Log(ctx, level, requestHandledMessage, attrs...)
 }

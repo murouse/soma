@@ -1,9 +1,11 @@
 package scheduler
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
@@ -17,48 +19,53 @@ type Scheduler struct {
 }
 
 func New(cfg *Config) (*Scheduler, error) {
+	logger := cmp.Or(cfg.Logger, slog.Default()).With(attr.Component("scheduler"))
+
+	globalJobOptions := slices.Clone(cfg.GlobalJobOptions)
 	if cfg.LoggingJobEnabled {
-		cfg.GlobalJobOptions = append(cfg.GlobalJobOptions, gocron.WithEventListeners( // todo в default
-			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) { // лог перед стартом задачи
-				slog.Debug("job started", attr.JobName(jobName), attr.JobID(jobID))
-			}),
-
-			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) { // лог после успешного выполнения задачи
-				slog.Debug("job completed", attr.JobName(jobName), attr.JobID(jobID))
-			}),
-
-			gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) { // лог если задача упала с ошибкой
-				slog.Error("job failed", attr.JobName(jobName), attr.JobID(jobID), attr.Error(err))
-			}),
-		))
+		globalJobOptions = append(globalJobOptions, loggingEventListeners(logger))
 	}
 
-	cfg.SchedulerOptions = append(cfg.SchedulerOptions, gocron.WithGlobalJobOptions(cfg.GlobalJobOptions...)) // переопределяем
+	// Встроенный логгер — первым, чтобы пользовательский gocron.WithLogger мог его заменить.
+	options := append([]gocron.SchedulerOption{gocron.WithLogger(logger)}, cfg.SchedulerOptions...)
+	options = append(options, gocron.WithGlobalJobOptions(globalJobOptions...))
 
-	// create a scheduler
-	s, err := gocron.NewScheduler(cfg.SchedulerOptions...)
+	s, err := gocron.NewScheduler(options...)
 	if err != nil {
 		return nil, fmt.Errorf("new scheduler: %w", err)
 	}
 
-	// add a jobs to the scheduler
 	for _, job := range cfg.Jobs {
-		j, err := s.NewJob(
-			job.Definition,
-			job.Task,
-			job.Options...,
-		)
+		j, err := s.NewJob(job.Definition, job.Task, job.Options...)
 		if err != nil {
 			return nil, fmt.Errorf("new job: %w", err)
 		}
 
-		cfg.Logger.Debug("job created", attr.JobName(j.Name()), attr.JobID(j.ID()))
+		logger.Debug("job created", attr.JobName(j.Name()), attr.JobID(j.ID()))
 	}
 
 	return &Scheduler{
 		scheduler: s,
-		logger:    cfg.Logger,
+		logger:    logger,
 	}, nil
+}
+
+func loggingEventListeners(logger *slog.Logger) gocron.JobOption {
+	return gocron.WithEventListeners(
+		gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
+			logger.Debug("job started", attr.JobName(jobName), attr.JobID(jobID))
+		}),
+		gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) {
+			logger.Debug("job completed", attr.JobName(jobName), attr.JobID(jobID))
+		}),
+		gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) {
+			logger.Error("job failed", attr.JobName(jobName), attr.JobID(jobID), attr.Error(err))
+		}),
+	)
+}
+
+func (s *Scheduler) Name() string {
+	return "scheduler"
 }
 
 func (s *Scheduler) Prepare(ctx context.Context) error {

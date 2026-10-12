@@ -7,10 +7,10 @@ import (
 )
 
 type Config struct {
-	Port              int
-	ShutdownTimeout   time.Duration
-	ReadHeaderTimeout time.Duration
-	Logger            *slog.Logger
+	Host            string
+	Port            int
+	ShutdownTimeout time.Duration
+	Logger          *slog.Logger // nil — slog.Default()
 }
 
 func (c *Config) Apply(opts ...Option) error {
@@ -25,9 +25,18 @@ func (c *Config) Apply(opts ...Option) error {
 
 type Option func(*Config) error
 
-func WithPort(cfg *Config) Option {
+func WithPort(port int) Option {
 	return func(c *Config) error {
-		c.Port = cfg.Port
+		c.Port = port
+		return nil
+	}
+}
+
+// WithHost задает интерфейс, на котором слушает профайлер. Пустая строка — все интерфейсы:
+// pprof отдает дампы памяти и командную строку процесса, поэтому открывать его наружу стоит осознанно.
+func WithHost(host string) Option {
+	return func(c *Config) error {
+		c.Host = host
 		return nil
 	}
 }
@@ -35,13 +44,6 @@ func WithPort(cfg *Config) Option {
 func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
 	return func(c *Config) error {
 		c.ShutdownTimeout = shutdownTimeout
-		return nil
-	}
-}
-
-func WithReadHeaderTimeout(readHeaderTimeout time.Duration) Option {
-	return func(c *Config) error {
-		c.ReadHeaderTimeout = readHeaderTimeout
 		return nil
 	}
 }

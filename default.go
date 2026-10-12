@@ -2,45 +2,28 @@ package soma
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
-
-	"github.com/murouse/golgi/attr"
-	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
-	grpcserver "github.com/murouse/soma/component/grpc-server"
-	httpserver "github.com/murouse/soma/component/http-server"
-	"github.com/murouse/soma/component/profiler"
-	"github.com/murouse/soma/component/scheduler"
 )
 
-func Default() (*EntrypointConfig, error) {
-	grpcServer, err := grpcserver.Default()
-	if err != nil {
-		return nil, fmt.Errorf("grpc server default: %w", err)
-	}
-
+// Default возвращает конфигурацию без компонентов: каждый компонент (scheduler, gRPC-сервер,
+// gateway, профайлер) включается только явно своей опцией With*.
+func Default() *EntrypointConfig {
 	return &EntrypointConfig{
-		scheduler:       scheduler.Default(),
-		grpcServer:      grpcServer,
-		grpcGateway:     grpcgateway.Default(),
-		profiler:        profiler.Default(),
-		customProcesses: []Process{},
-		prepareTimeout:  time.Second * 5,
-		shutdownTimeout: time.Second * 5,
-		closures:        []func() error{},
-		logger:          slog.Default().With(attr.Component("entrypoint")),
-		httpServers:     []httpserver.Config{},
-	}, nil
+		prepareTimeout:  5 * time.Second,
+		shutdownTimeout: 5 * time.Second,
+		closeTimeout:    5 * time.Second,
+	}
 }
 
 func DefaultWith(opts ...EntrypointOption) (*EntrypointConfig, error) {
-	cfg, err := Default()
-	if err != nil {
-		return nil, fmt.Errorf("default: %w", err)
-	}
-
-	if err = cfg.Apply(opts...); err != nil {
+	cfg := Default()
+	if err := cfg.Apply(opts...); err != nil {
 		return nil, fmt.Errorf("apply options: %w", err)
 	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("validate: %w", err)
+	}
+
 	return cfg, nil
 }

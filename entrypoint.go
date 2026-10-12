@@ -1,32 +1,50 @@
 package soma
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
+	"net"
 	"os/signal"
+	"slices"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/murouse/golgi/attr"
 	"github.com/murouse/soma/accessor/closer"
-	grpcgateway "github.com/murouse/soma/component/grpc-gateway"
-	grpcserver "github.com/murouse/soma/component/grpc-server"
-	httpserver "github.com/murouse/soma/component/http-server"
-
+	"github.com/murouse/soma/component/grpcgateway"
+	"github.com/murouse/soma/component/grpcserver"
+	"github.com/murouse/soma/component/httpserver"
 	"github.com/murouse/soma/component/profiler"
 	"github.com/murouse/soma/component/scheduler"
-	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 )
 
 // Entrypoint управляет жизненным циклом всех зарегистрированных процессов.
+//
+// Жизненный цикл:
+//  1. Prepare — последовательно, в порядке регистрации, с общим таймаутом prepareTimeout.
+//     Если Prepare одного из процессов падает, уже подготовленные процессы останавливаются
+//     (Shutdown в обратном порядке) и ресурсы закрываются.
+//  2. Run — конкурентно. Фаза длится, пока не придет SIGINT/SIGTERM, не отменится родительский
+//     контекст, один из процессов не вернет ошибку или все процессы не завершатся сами.
+//  3. Drain — процессы, реализующие Drainer, перестают сообщать о готовности, затем пауза
+//     shutdownDelay, чтобы балансировщик успел снять экземпляр с трафика.
+//  4. Shutdown — последовательно, в обратном порядке (LIFO), затем ожидание завершения всех Run.
+//     На всё вместе отводится shutdownTimeout.
+//  5. Close — закрытие технических ресурсов (WithClosers) с отдельным бюджетом closeTimeout,
+//     чтобы зависший процесс не лишал ресурсы шанса закрыться.
+//
+// Максимальное время остановки: shutdownDelay + shutdownTimeout + closeTimeout.
 type Entrypoint struct {
 	processes       []Process
-	shutdownTimeout time.Duration
 	prepareTimeout  time.Duration
+	shutdownDelay   time.Duration
+	shutdownTimeout time.Duration
+	closeTimeout    time.Duration
 	closer          Closer // Process.Shutdown для жизненного цикла серверов, а Closer для технических ресурсов
 	logger          *slog.Logger
 }
@@ -50,20 +68,19 @@ func Run(ctx context.Context, opts ...EntrypointOption) error {
 }
 
 // NewEntrypoint создает новую точку входа на основе предоставленных опций.
+// Здесь же компоненты собираются вместе: сами пакеты компонентов друг о друге не знают.
 func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 	cfg, err := DefaultWith(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("default config: %w", err)
 	}
 
-	if err = cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("validate config: %w", err)
-	}
+	cfg.inheritLogger()
+	logger := cmp.Or(cfg.logger, slog.Default())
 
-	processes := cfg.customProcesses
+	processes := slices.Clone(cfg.customProcesses)
 
-	// Scheduler
-	if lo.IsNotNil(cfg.scheduler) {
+	if cfg.scheduler != nil {
 		sch, err := scheduler.New(cfg.scheduler)
 		if err != nil {
 			return nil, fmt.Errorf("scheduler new: %w", err)
@@ -71,90 +88,172 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 		processes = append(processes, sch)
 	}
 
-	// GRPC Server
-	if lo.IsNotNil(cfg.grpcServer) {
+	if cfg.grpcServer != nil {
 		processes = append(processes, grpcserver.New(cfg.grpcServer))
 	}
 
-	// GRPC-Gateway Server
-	if lo.IsNotNil(cfg.grpcGateway) {
+	// Наличие grpcServer гарантирует Validate
+	if cfg.grpcGateway != nil {
 		processes = append(processes, grpcgateway.New(
 			cfg.grpcGateway,
-			lo.Map(cfg.grpcServer.Impls, func(impl grpcserver.ImplementationAdapter, _ int) grpcgateway.ImplementationAdapter {
-				return impl
-			}),
-			cfg.grpcServer.Port,
+			gatewayServices(cfg.grpcServer.Services),
+			net.JoinHostPort("localhost", strconv.Itoa(cfg.grpcServer.Port)),
 		))
 	}
 
-	// Profiler
-	if lo.IsNotNil(cfg.profiler) {
+	if cfg.profiler != nil {
 		processes = append(processes, profiler.New(cfg.profiler))
 	}
 
-	// HTTP Servers
 	for _, httpServer := range cfg.httpServers {
-		processes = append(processes, httpserver.New(&httpServer))
+		processes = append(processes, httpserver.New(httpServer))
 	}
 
 	return &Entrypoint{
 		processes:       processes,
 		prepareTimeout:  cfg.prepareTimeout,
+		shutdownDelay:   cfg.shutdownDelay,
 		shutdownTimeout: cfg.shutdownTimeout,
-		closer:          closer.New(cfg.logger, cfg.closures...),
-		logger:          cfg.logger,
+		closeTimeout:    cfg.closeTimeout,
+		closer:          closer.New(logger.With(attr.Component("closer")), cfg.closures...),
+		logger:          logger.With(attr.Component("entrypoint")),
 	}, nil
 }
 
+// gatewayServices отбирает gRPC-сервисы, которые умеют регистрировать хендлеры grpc-gateway.
+func gatewayServices(services []grpcserver.Service) []grpcgateway.Service {
+	var gatewayServices []grpcgateway.Service
+	for _, service := range services {
+		if gatewayService, ok := service.(grpcgateway.Service); ok {
+			gatewayServices = append(gatewayServices, gatewayService)
+		}
+	}
+	return gatewayServices
+}
+
 // Run запускает все зарегистрированные процессы конкурентно и ожидает их завершения.
+// Возвращает объединение ошибок всех фаз: Prepare, Run, Shutdown и Close.
 func (e *Entrypoint) Run(ctx context.Context) error {
+	// Подписываемся на сигналы до Prepare: SIGTERM во время долгой инициализации тоже
+	// должен приводить к корректной остановке, а не к убийству процесса.
+	ctx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+
+	// ctx к моменту остановки уже отменен, но его значения (атрибуты логов, трейсы) нужны и там.
+	stopCtx := context.WithoutCancel(ctx)
+
 	// Фаза Prepare (последовательная)
 	e.logger.DebugContext(ctx, "prepare phase")
-	prepareCtx, prepareCancel := context.WithTimeout(ctx, e.prepareTimeout)
-	defer prepareCancel()
-	for _, process := range e.processes {
-		if err := process.Prepare(prepareCtx); err != nil {
-			return fmt.Errorf("process prepare: %w", err)
-		}
+	prepared, err := e.prepare(ctx)
+	if err != nil {
+		e.logger.ErrorContext(ctx, "prepare failed, rolling back", attr.Error(err))
+		// Run ни у кого не запускался: снимать с балансировки и ждать нечего (runDone == nil).
+		return errors.Join(err, e.shutdown(stopCtx, prepared, nil))
 	}
 
 	// Фаза Run
 	e.logger.DebugContext(ctx, "run phase")
-	runCtx, runCancel := context.WithCancel(ctx) // для того, чтобы отменить в случае получения сигнала
-	defer runCancel()
-	runEG, runCtx := errgroup.WithContext(runCtx) // ддя того, чтобы отменился в случае ошибки в одном из Run
+	// runCtx отменяется при сигнале (через ctx), при первой ошибке любого Run
+	// и когда все Run завершились (errgroup отменяет контекст при возврате Wait).
+	runEG, runCtx := errgroup.WithContext(ctx)
 	for _, process := range e.processes {
 		runEG.Go(func() error {
 			if err := process.Run(runCtx); err != nil && !errors.Is(err, context.Canceled) {
-				return fmt.Errorf("process run: %w", err)
+				return fmt.Errorf("run %s: %w", processName(process), err)
 			}
 			return nil
 		})
 	}
 
-	// Ожидание либо ошибки, либо сигнала
-	exitChan := make(chan os.Signal, 1)
-	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM)
+	// Буфер 1: если Shutdown не дождется Run, горутина не зависнет на отправке.
+	runDone := make(chan error, 1)
+	go func() { runDone <- runEG.Wait() }()
 
-	select {
-	case sig := <-exitChan:
-		e.logger.InfoContext(ctx, "received signal, initiating shutdown", slog.String("signal", sig.String()))
-		runCancel()
-	case <-runCtx.Done():
-		e.logger.InfoContext(ctx, "context canceled, initiating shutdown")
-	}
+	<-runCtx.Done()
+	// Отписываемся от сигналов сразу: повторный Ctrl+C во время зависшей остановки
+	// завершит процесс стандартным обработчиком.
+	stopSignals()
+	e.logger.InfoContext(ctx, "initiating shutdown", slog.Any("cause", context.Cause(runCtx)))
 
-	// Фаза Shutdown (последовательная, LIFO)
-	// Завершаем процессы
-	e.logger.DebugContext(ctx, "shutdown phase")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), e.shutdownTimeout)
-	defer shutdownCancel()
-	for i := len(e.processes) - 1; i >= 0; i-- {
-		if err := e.processes[i].Shutdown(shutdownCtx); err != nil {
-			e.logger.ErrorContext(ctx, "process shutdown", attr.Error(err))
+	e.drain(stopCtx)
+	return e.shutdown(stopCtx, e.processes, runDone)
+}
+
+// prepare последовательно готовит процессы и возвращает те, чей Prepare завершился успешно.
+func (e *Entrypoint) prepare(ctx context.Context) ([]Process, error) {
+	prepareCtx, cancel := context.WithTimeout(ctx, e.prepareTimeout)
+	defer cancel()
+
+	for i, process := range e.processes {
+		if err := process.Prepare(prepareCtx); err != nil {
+			return e.processes[:i], fmt.Errorf("prepare %s: %w", processName(process), err)
 		}
 	}
 
-	// Ждем завершения всех процессов и закрываем ресурсы
-	return errors.Join(runEG.Wait(), e.closer.Close(shutdownCtx))
+	return e.processes, nil
+}
+
+// drain снимает процессы с балансировки и ждет shutdownDelay, чтобы балансировщик успел
+// это заметить. Запросы в это время продолжают обслуживаться.
+func (e *Entrypoint) drain(ctx context.Context) {
+	e.logger.DebugContext(ctx, "drain phase")
+
+	for _, process := range slices.Backward(e.processes) {
+		if drainer, ok := process.(Drainer); ok {
+			drainer.Drain()
+		}
+	}
+
+	if e.shutdownDelay > 0 {
+		e.logger.InfoContext(ctx, "waiting before shutdown", slog.Duration("delay", e.shutdownDelay))
+		time.Sleep(e.shutdownDelay)
+	}
+}
+
+// shutdown останавливает процессы в обратном порядке (LIFO), дожидается завершения их Run
+// (если runDone != nil) и закрывает ресурсы. Ошибка любого шага не прерывает остальные.
+func (e *Entrypoint) shutdown(ctx context.Context, processes []Process, runDone <-chan error) error {
+	e.logger.DebugContext(ctx, "shutdown phase")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, e.shutdownTimeout)
+	defer shutdownCancel()
+
+	var errs []error
+	for _, process := range slices.Backward(processes) {
+		if err := process.Shutdown(shutdownCtx); err != nil {
+			errs = append(errs, fmt.Errorf("shutdown %s: %w", processName(process), err))
+		}
+	}
+
+	if runDone != nil {
+		// Процесс, нарушающий контракт (игнорирует и ctx, и Shutdown), не должен
+		// подвешивать остановку навсегда.
+		select {
+		case err := <-runDone:
+			errs = append(errs, err)
+		case <-shutdownCtx.Done():
+			errs = append(errs, fmt.Errorf("wait processes: %w", shutdownCtx.Err()))
+		}
+	}
+
+	// Отдельный бюджет: даже если процессы съели весь shutdownTimeout,
+	// ресурсы (БД, брокеры) все равно получают шанс закрыться.
+	closeCtx, closeCancel := context.WithTimeout(ctx, e.closeTimeout)
+	defer closeCancel()
+
+	e.logger.DebugContext(ctx, "close phase")
+	if err := e.closer.Close(closeCtx); err != nil {
+		errs = append(errs, fmt.Errorf("close resources: %w", err))
+	}
+
+	return errors.Join(errs...)
+}
+
+// processName возвращает имя процесса для логов и ошибок: Name(), если процесс
+// реализует Named, иначе имя типа.
+func processName(process Process) string {
+	if named, ok := process.(Named); ok {
+		return named.Name()
+	}
+	return fmt.Sprintf("%T", process)
 }
