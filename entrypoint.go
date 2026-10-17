@@ -15,6 +15,7 @@ import (
 
 	"github.com/murouse/golgi/attr"
 	"github.com/murouse/soma/accessor/closer"
+	"github.com/murouse/soma/component/grpcconnect"
 	"github.com/murouse/soma/component/grpcgateway"
 	"github.com/murouse/soma/component/grpcserver"
 	"github.com/murouse/soma/component/httpserver"
@@ -88,8 +89,10 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 		processes = append(processes, sch)
 	}
 
+	var grpcServer *grpcserver.Server
 	if cfg.grpcServer != nil {
-		processes = append(processes, grpcserver.New(cfg.grpcServer))
+		grpcServer = grpcserver.New(cfg.grpcServer)
+		processes = append(processes, grpcServer)
 	}
 
 	// Наличие grpcServer гарантирует Validate
@@ -97,6 +100,15 @@ func NewEntrypoint(opts ...EntrypointOption) (*Entrypoint, error) {
 		processes = append(processes, grpcgateway.New(
 			cfg.grpcGateway,
 			gatewayServices(cfg.grpcServer.Services),
+			net.JoinHostPort("localhost", strconv.Itoa(cfg.grpcServer.Port)),
+		))
+	}
+
+	// Наличие grpcServer гарантирует Validate; сервисы читаются после его Prepare
+	if cfg.grpcConnect != nil {
+		processes = append(processes, grpcconnect.New(
+			cfg.grpcConnect,
+			grpcServer,
 			net.JoinHostPort("localhost", strconv.Itoa(cfg.grpcServer.Port)),
 		))
 	}

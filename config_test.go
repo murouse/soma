@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/murouse/soma/component/grpcconnect"
 	"github.com/murouse/soma/component/grpcgateway"
 	"github.com/murouse/soma/component/grpcserver"
 	"github.com/murouse/soma/component/httpserver"
@@ -35,6 +36,11 @@ func TestEntrypointConfig_Validate(t *testing.T) {
 			name:    "gateway without grpc server",
 			cfg:     &EntrypointConfig{grpcGateway: &grpcgateway.Config{}},
 			wantErr: ErrGatewayRequiresGRPCServer,
+		},
+		{
+			name:    "connect without grpc server",
+			cfg:     &EntrypointConfig{grpcConnect: &grpcconnect.Config{}},
+			wantErr: ErrConnectRequiresGRPCServer,
 		},
 	}
 

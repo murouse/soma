@@ -26,7 +26,7 @@
 * **Декларативная конфигурация**: компоненты подключаются и настраиваются через `Functional Options`.
 * **Единый жизненный цикл**: подготовка, запуск, плавная остановка и закрытие ресурсов для всех процессов.
 * **Готовность к Kubernetes**: health-проверки, снятие с балансировки перед остановкой, ограниченное время остановки.
-* **Модульность**: gRPC-сервер, HTTP-шлюз (grpc-gateway), HTTP-серверы, планировщик задач и pprof — каждый включается своей опцией.
+* **Модульность**: gRPC-сервер, HTTP-шлюз (grpc-gateway), Connect-шлюз, HTTP-серверы, планировщик задач и pprof — каждый включается своей опцией.
 * **Безопасные значения по умолчанию**: CORS, reflection и swagger выключены, профайлер доступен только локально, у HTTP-серверов есть таймауты.
 * **Наблюдаемость из коробки**: логирование запросов, recovery от паник и валидация (protovalidate) для HTTP и gRPC, включая стримы.
 * **Type-safe**: Полная поддержка типизации благодаря Go.
@@ -75,10 +75,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/go-chi/cors"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/murouse/soma"
+	"github.com/murouse/soma/component/grpcconnect"
 	"github.com/murouse/soma/component/grpcgateway"
 	"github.com/murouse/soma/component/grpcserver"
 	"github.com/murouse/soma/component/httpserver"
@@ -240,6 +242,14 @@ func main() {
 			grpcgateway.WithLogger(logger),
 		),
 
+		// Connect-шлюз к gRPC-серверу (Connect, gRPC-Web, gRPC)
+		soma.WithGRPCConnect(
+			grpcconnect.WithPort(1481),
+			grpcconnect.WithShutdownTimeout(5*time.Second),
+			grpcconnect.WithHandlerOptions(connecthttp.WithReadMaxBytes(16<<20)),
+			grpcconnect.WithLogger(logger),
+		),
+
 		// Профайлер pprof
 		soma.WithProfiler(
 			profiler.WithHost("127.0.0.1"),
@@ -324,7 +334,7 @@ SIGTERM
 
 Максимальное время остановки: `shutdownDelay + shutdownTimeout + closeTimeout`.
 
-**Порядок процессов.** Процессы из `WithProcesses` → планировщик → gRPC-сервер → gateway → профайлер →
+**Порядок процессов.** Процессы из `WithProcesses` → планировщик → gRPC-сервер → gateway → Connect-шлюз → профайлер →
 HTTP-серверы (в порядке `WithHTTPServer`). Prepare идет в этом порядке, Drain и Shutdown — в обратном:
 например, gateway останавливается раньше gRPC-сервера, в который он проксирует запросы.
 
@@ -351,6 +361,7 @@ HTTP-серверы (в порядке `WithHTTPServer`). Prepare идет в э
 | `WithScheduler(...scheduler.Option)` | выключен | Планировщик задач. |
 | `WithGRPCServer(...grpcserver.Option)` | выключен | gRPC-сервер. |
 | `WithGRPCGateway(...grpcgateway.Option)` | выключен | HTTP-шлюз. Требует `WithGRPCServer`, иначе `ErrGatewayRequiresGRPCServer`. |
+| `WithGRPCConnect(...grpcconnect.Option)` | выключен | Connect-шлюз. Требует `WithGRPCServer`, иначе `ErrConnectRequiresGRPCServer`. |
 | `WithProfiler(...profiler.Option)` | выключен | Профайлер pprof. |
 | `WithHTTPServer(http.Handler, int, ...httpserver.Option)` | — | HTTP-сервер с хендлером и портом. Можно добавить несколько. |
 
@@ -392,6 +403,23 @@ HTTP-серверы (в порядке `WithHTTPServer`). Prepare идет в э
 Маршрутизация: сначала хендлеры `WithHTTPHandler` и swagger, всё остальное — в grpc-gateway.
 HTTP-сервер шлюза использует значения по умолчанию `httpserver` (таймауты, встроенные middleware).
 Шлюз подключается к gRPC-серверу по `localhost:<порт gRPC-сервера>`.
+
+### Connect-шлюз (`grpcconnect`)
+
+| Опция | По умолчанию | Описание |
+|-------|--------------|----------|
+| `WithPort(int)` | 1481 | Порт; слушает все интерфейсы. |
+| `WithShutdownTimeout(time.Duration)` | 1 с | Ожидание активных запросов при остановке. |
+| `WithHandlerOptions(...connecthttp.Option)` | JSON и Protobuf, gzip | Опции `connecthttp.Mount`: кодеки, сжатие, лимиты размера сообщений. |
+| `WithTLSConfig(*tls.Config)` | h2c без TLS | TLS-соединение с gRPC-сервером. |
+| `WithLogger(*slog.Logger)` | наследуется | Логгер шлюза. |
+
+Шлюз проксирует все сервисы gRPC-сервера, кроме служебных `grpc.*` (health, reflection), по путям
+`/<package>.<Service>/<Method>`. Кодогенерация не нужна: методы берутся из дескрипторов в
+`protoregistry.GlobalFiles`. Запрос приходит в gRPC-сервер обычным gRPC по `localhost:<порт gRPC-сервера>`,
+поэтому интерцепторы сервера выполняются как для любого клиента, а заголовки и metadata
+(в том числе `Cookie` и `Set-Cookie`) пробрасываются в обе стороны. HTTP GET для Connect работает
+у методов с `option idempotency_level = NO_SIDE_EFFECTS`.
 
 ### HTTP-сервер (`httpserver`, через `soma.WithHTTPServer`)
 

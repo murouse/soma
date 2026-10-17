@@ -64,11 +64,12 @@ func TestNewEntrypoint(t *testing.T) {
 			opts: []EntrypointOption{
 				WithHTTPServer(http.NotFoundHandler(), 8080),
 				WithProfiler(),
+				WithGRPCConnect(),
 				WithGRPCGateway(),
 				WithGRPCServer(),
 				WithScheduler(),
 			},
-			wantNames: []string{"scheduler", "grpc-server", "grpc-gateway", "profiler", "http-server"},
+			wantNames: []string{"scheduler", "grpc-server", "grpc-gateway", "grpc-connect", "profiler", "http-server"},
 			wantErr:   nil,
 		},
 		{
@@ -76,6 +77,12 @@ func TestNewEntrypoint(t *testing.T) {
 			opts:      []EntrypointOption{WithGRPCGateway()},
 			wantNames: nil,
 			wantErr:   ErrGatewayRequiresGRPCServer,
+		},
+		{
+			name:      "connect without grpc server",
+			opts:      []EntrypointOption{WithGRPCConnect()},
+			wantNames: nil,
+			wantErr:   ErrConnectRequiresGRPCServer,
 		},
 		{
 			name:      "http server without handler",

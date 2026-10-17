@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+- **Connect-шлюз** `grpcconnect` (`soma.WithGRPCConnect`, порт 1481): принимает Connect, gRPC-Web
+  и gRPC (https://connectrpc.com) и проксирует запросы в gRPC-сервер. Работает рядом с grpc-gateway
+  и не требует кодогенерации: методы берутся из дескрипторов зарегистрированных сервисов
+  (`vanguard.ForwardService`), служебные `grpc.*` (health, reflection) наружу не отдаются.
+  Запросы приходят в gRPC-сервер обычным gRPC, поэтому его интерцепторы выполняются как обычно;
+  заголовки и metadata пробрасываются в обе стороны (включая `Set-Cookie`).
+- `grpcconnect`: `WithPort`, `WithShutdownTimeout`, `WithHandlerOptions` (опции `connecthttp.Mount`),
+  `WithTLSConfig` (TLS к gRPC-серверу), `WithLogger`.
+- `grpcserver.Server.GetServiceInfo()`.
+- `soma.ErrConnectRequiresGRPCServer`.
+
+### Изменено
+
+- Минимальная версия Go — 1.26 (требование `connectrpc.com/connect/v2` и `connectrpc.com/vanguard`).
+- `google.golang.org/grpc` v1.81.1 → v1.83.2.
+
+## [1.1.15]
+
 Изменения относительно `v1.1.14`. Релиз содержит несовместимые изменения API — см. раздел
 [«Миграция»](#миграция-с-v1114).
 

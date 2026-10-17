@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/murouse/soma/component/grpcconnect"
 	"github.com/murouse/soma/component/grpcgateway"
 	"github.com/murouse/soma/component/grpcserver"
 	"github.com/murouse/soma/component/httpserver"
@@ -20,6 +21,7 @@ type EntrypointConfig struct {
 	scheduler       *scheduler.Config
 	grpcServer      *grpcserver.Config
 	grpcGateway     *grpcgateway.Config
+	grpcConnect     *grpcconnect.Config
 	profiler        *profiler.Config
 	httpServers     []*httpserver.Config
 	customProcesses []Process // процессы, добавляемые пользователем через WithProcesses
@@ -34,9 +36,15 @@ type EntrypointConfig struct {
 // ErrGatewayRequiresGRPCServer возвращается, если gRPC-Gateway включен без gRPC-сервера.
 var ErrGatewayRequiresGRPCServer = errors.New("grpc gateway requires grpc server: add WithGRPCServer")
 
+// ErrConnectRequiresGRPCServer возвращается, если Connect-шлюз включен без gRPC-сервера.
+var ErrConnectRequiresGRPCServer = errors.New("grpc connect requires grpc server: add WithGRPCServer")
+
 func (c *EntrypointConfig) Validate() error {
 	if c.grpcServer == nil && c.grpcGateway != nil {
 		return ErrGatewayRequiresGRPCServer
+	}
+	if c.grpcServer == nil && c.grpcConnect != nil {
+		return ErrConnectRequiresGRPCServer
 	}
 
 	return nil
@@ -67,6 +75,9 @@ func (c *EntrypointConfig) inheritLogger() {
 	}
 	if c.grpcGateway != nil {
 		c.grpcGateway.Logger = cmp.Or(c.grpcGateway.Logger, c.logger)
+	}
+	if c.grpcConnect != nil {
+		c.grpcConnect.Logger = cmp.Or(c.grpcConnect.Logger, c.logger)
 	}
 	if c.profiler != nil {
 		c.profiler.Logger = cmp.Or(c.profiler.Logger, c.logger)
@@ -173,6 +184,19 @@ func WithGRPCGateway(opts ...grpcgateway.Option) EntrypointOption {
 			return fmt.Errorf("grpc gateway: %w", err)
 		}
 		c.grpcGateway = cfg
+		return nil
+	}
+}
+
+// WithGRPCConnect активирует Connect-шлюз (Connect, gRPC-Web, gRPC) для проксирования запросов
+// в gRPC-сервисы. Требует наличия gRPC-сервера и подхватывает все его сервисы, кроме служебных.
+func WithGRPCConnect(opts ...grpcconnect.Option) EntrypointOption {
+	return func(c *EntrypointConfig) error {
+		cfg, err := grpcconnect.DefaultWith(opts...)
+		if err != nil {
+			return fmt.Errorf("grpc connect: %w", err)
+		}
+		c.grpcConnect = cfg
 		return nil
 	}
 }

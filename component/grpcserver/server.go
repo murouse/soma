@@ -103,6 +103,11 @@ func (s *Server) serverOptions() ([]grpc.ServerOption, error) {
 	}, s.cfg.ServerOptions...), nil
 }
 
+// GetServiceInfo возвращает зарегистрированные сервисы. Доступно после Prepare.
+func (s *Server) GetServiceInfo() map[string]grpc.ServiceInfo {
+	return s.server.GetServiceInfo()
+}
+
 // Addr возвращает фактический адрес после Prepare (полезно при порте 0).
 func (s *Server) Addr() net.Addr {
 	return s.listener.Addr()
