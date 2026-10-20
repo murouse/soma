@@ -113,7 +113,7 @@ func (s *Server) upstreamTransport() connect.Transport {
 	s.transport = &http.Transport{Protocols: &protocols, TLSClientConfig: s.cfg.TLSConfig}
 	client := &http.Client{Transport: s.transport}
 
-	return connecthttp.NewTransport(client, scheme+s.grpcTarget, connecthttp.WithGRPC())
+	return serializedTransport{connecthttp.NewTransport(client, scheme+s.grpcTarget, connecthttp.WithGRPC())}
 }
 
 func findService(name string) (protoreflect.ServiceDescriptor, error) {

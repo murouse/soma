@@ -22,6 +22,14 @@
 - Минимальная версия Go — 1.26 (требование `connectrpc.com/connect/v2` и `connectrpc.com/vanguard`).
 - `google.golang.org/grpc` v1.81.1 → v1.83.2.
 
+### Исправлено
+
+- `grpcconnect`: процесс падал с `concurrent map iteration and map write`, когда клиент обрывал запрос
+  (уход со страницы, отмена `fetch`). `vanguard` v0.5.0 закрывает upstream-поток, не дождавшись своей
+  горутины отправки, и та пишет заголовки запроса, пока `Close` их уже отправляет. Upstream-поток обернут
+  (`serializedTransport`): `Send`/`CloseSend`/`Close` не пересекаются, после `Close` поток не трогается.
+  Регрессионный тест — `TestServer_CanceledRequests` (запускать с `-race`).
+
 ## [1.1.15]
 
 Изменения относительно `v1.1.14`. Релиз содержит несовместимые изменения API — см. раздел
