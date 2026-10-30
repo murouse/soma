@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -50,6 +51,12 @@ func TestManager_LoggingUnaryInterceptor(t *testing.T) {
 			method:     "/test.Service/Method",
 			handlerErr: assert.AnError,
 			wantLevel:  "ERROR",
+		},
+		{
+			name:       "wrapped cancel is warn",
+			method:     "/test.Service/Method",
+			handlerErr: fmt.Errorf("select: %w", context.Canceled),
+			wantLevel:  "WARN",
 		},
 		{
 			name:       "health check is not logged",

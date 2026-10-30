@@ -94,7 +94,7 @@ func (m *Manager) withLoggingAttrs(ctx context.Context, fullMethod string) conte
 
 // logResult пишет финальный лог запроса с кодом ответа.
 func (m *Manager) logResult(ctx context.Context, start time.Time, err error) {
-	code := status.Code(err)
+	code := statusCode(err)
 	extra := []any{
 		slog.GroupAttrs(attrGRPCGroupKey,
 			slog.Int(attrGRPCCodeKey, int(code)),
@@ -107,6 +107,16 @@ func (m *Manager) logResult(ctx context.Context, start time.Time, err error) {
 	}
 
 	middleware.LogRequestFinal(ctx, m.logger, levelForCode(code), start, extra...)
+}
+
+// statusCode — код, который получит клиент: grpc-go так же переводит обернутую отмену или таймаут контекста
+// (fmt.Errorf("…: %w", ctx.Err())) в Canceled / DeadlineExceeded, а не в Unknown
+func statusCode(err error) codes.Code {
+	if s, ok := status.FromError(err); ok {
+		return s.Code()
+	}
+
+	return status.FromContextError(err).Code()
 }
 
 // levelForCode: ошибки клиента — Warn, ошибки сервиса — Error.

@@ -24,6 +24,9 @@
 
 ### Исправлено
 
+- Логирование gRPC: отмена клиентом и таймаут, которые хендлер вернул обернутыми (`fmt.Errorf("…: %w", ctx.Err())`),
+  логировались как `Unknown` с уровнем ERROR. Код теперь считается так же, как его отдает клиенту grpc-go
+  (`status.FromContextError`): `Canceled` — WARN, `DeadlineExceeded` — ERROR.
 - `grpcconnect`: процесс падал с `concurrent map iteration and map write`, когда клиент обрывал запрос
   (уход со страницы, отмена `fetch`). `vanguard` v0.5.0 закрывает upstream-поток, не дождавшись своей
   горутины отправки, и та пишет заголовки запроса, пока `Close` их уже отправляет. Upstream-поток обернут
